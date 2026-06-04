@@ -10,21 +10,24 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
--- 🚨 1. SÉCURITÉ WHITELIST INITIALE
+-- 🚨 SÉCURITÉ WHITELIST AVEC ANTI-CACHE TOTAL
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
--- Force la vérification avant tout le reste
+-- On ajoute un nombre aléatoire (math.random) + le temps (os.time) pour garantir que l'URL est unique à chaque lancement
+local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?r=" .. math.random(1000000) .. "&t=" .. os.time()
+
 local success, result = pcall(function()
-    -- On ajoute le time pour tuer le cache, c'est ça qui te faisait croire que ça marchait sans ton nom
-    return game:HttpGet("https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?nocache=" .. os.time())
+    return game:HttpGet(url_whitelist)
 end)
 
+-- On vérifie si la requête a réussi ET si le nom est présent
 if not success or not string.find(result:lower(), localPlayer.Name:lower()) then
-    -- On utilise error() pour stopper totalement l'exécution du script si la whitelist échoue
-    error("[HK_TEAM] Accès refusé : Tu n'es pas dans la whitelist.")
-    return 
+    warn("[HK_TEAM] Accès refusé ! Tu n'es pas dans la whitelist.")
+    -- On bloque totalement la suite en faisant une boucle infinie ou un error()
+    error("Sécurité activée : Accès refusé") 
 end
+
 
 -- Le script ne continue que si le nom est trouvé dans la whitelist
 print("[HK_TEAM] Whitelist validée, lancement du script...")
