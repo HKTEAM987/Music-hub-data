@@ -11,13 +11,24 @@ local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
 -- 🚨 1. SÉCURITÉ WHITELIST INITIALE
-local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/refs/heads/main/whitelist.txt?time=".. os.time()
-local succesWL, resultatWL = pcall(function() return game:HttpGet(url_whitelist) end)
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
 
-if not succesWL or not string.find(resultatWL:lower(), localPlayer.Name:lower()) then 
-    warn("[HK_TEAM] Tu n'es pas dans la whitelist ! Accès refusé.")
+-- Force la vérification avant tout le reste
+local success, result = pcall(function()
+    -- On ajoute le time pour tuer le cache, c'est ça qui te faisait croire que ça marchait sans ton nom
+    return game:HttpGet("https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?nocache=" .. os.time())
+end)
+
+if not success or not string.find(result:lower(), localPlayer.Name:lower()) then
+    -- On utilise error() pour stopper totalement l'exécution du script si la whitelist échoue
+    error("[HK_TEAM] Accès refusé : Tu n'es pas dans la whitelist.")
     return 
 end
+
+-- Le script ne continue que si le nom est trouvé dans la whitelist
+print("[HK_TEAM] Whitelist validée, lancement du script...")
+
 
 -- Configuration Fixe
 local CREATOR_NAME = "DIABLESSE"
