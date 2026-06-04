@@ -15,7 +15,7 @@ local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
 -- On utilise le lien RAW et on ajoute un paramètre temps unique à chaque fois
-local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?nocache=" .. os.time()
+local url_whitelist = "https://raw.githubusercontent.com/HKTEAM987/Music-hub-data/refs/heads/main/whitelist.txt" .. os.time()
 
 local estValide = false
 local tentatives = 0
