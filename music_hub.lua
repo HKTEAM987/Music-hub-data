@@ -10,39 +10,48 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
--- 🚨 SÉCURITÉ ATTENDUE (BLOQUANTE)
+-- 🚨 1. SÉCURITÉ WHITELIST (BLOQUANTE ET ANTI-CACHE)
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
+-- On utilise le lien RAW et on ajoute un paramètre temps unique à chaque fois
 local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?nocache=" .. os.time()
 
 local estValide = false
-local tentative = 0
+local tentatives = 0
 
--- On boucle tant qu'on n'a pas eu de réponse claire
-while not estValide and tentative < 5 do
-    tentative = tentative + 1
-    local success, result = pcall(function() return game:HttpGet(url_whitelist) end)
+-- On essaie de charger 5 fois si besoin
+while not estValide and tentatives < 5 do
+    tentatives = tentatives + 1
     
-    if success and result and result ~= "" then
+    local success, result = pcall(function() 
+        return game:HttpGet(url_whitelist) 
+    end)
+    
+    if success and result then
+        -- Vérification si ton nom est dans le texte brut
         if string.find(result:lower(), localPlayer.Name:lower()) then
             estValide = true
             print("[HK_TEAM] Whitelist validée !")
         else
-            warn("[HK_TEAM] Ton nom n'est pas dans la whitelist.")
-            break -- On sort de la boucle si le nom n'est pas là
+            warn("[HK_TEAM] Ton nom n'est pas dans la whitelist. Tentative " .. tentatives .. "/5")
+            task.wait(2) -- On attend 2 secondes avant de retenter
         end
     else
-        warn("[HK_TEAM] Connexion à la whitelist impossible, nouvelle tentative...")
-        task.wait(1) -- On attend 1 seconde entre chaque tentative
+        warn("[HK_TEAM] Échec connexion GitHub. Tentative " .. tentatives .. "/5")
+        task.wait(2)
     end
 end
 
--- Si après 5 tentatives c'est toujours pas validé, on tue le script
+-- Si après les tentatives, ce n'est pas valide, on arrête tout
 if not estValide then
-    error("ACCÈS REFUSÉ : Whitelist non validée.")
-    return 
+    warn("[HK_TEAM] ACCÈS REFUSÉ : Tu n'es pas dans la whitelist.")
+    error("ACCÈS REFUSÉ") -- Stoppe complètement l'exécution du script
+    return
 end
+
+print("[HK_TEAM] Initialisation du Hub...")
+
 
 
 -- Le script ne continue que si le nom est trouvé dans la whitelist
