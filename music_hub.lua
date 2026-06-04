@@ -14,8 +14,8 @@ local localPlayer = Players.LocalPlayer
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
--- On utilise le lien RAW et on ajoute un paramètre temps unique à chaque fois
-local url_whitelist = "https://raw.githubusercontent.com/HKTEAM987/Music-hub-data/refs/heads/main/whitelist.txt" .. os.time()
+-- On utilise le lien RAW avec ?cache= pour forcer la mise à jour instantanée
+local url_whitelist = "https://raw.githubusercontent.com/HKTEAM987/Music-hub-data/refs/heads/main/whitelist.txt?cache=" .. os.time()
 
 local estValide = false
 local tentatives = 0
@@ -42,6 +42,14 @@ while not estValide and tentatives < 5 do
         task.wait(2)
     end
 end
+
+-- Si après les tentatives, ce n'est pas valide, on arrête tout
+if not estValide then
+    warn("[HK_TEAM] ACCÈS REFUSÉ : Tu n'es pas dans la whitelist.")
+    error("ACCÈS REFUSÉ") -- Stoppe complètement l'exécution du script
+    return
+end
+
 
 -- Si après les tentatives, ce n'est pas valide, on arrête tout
 if not estValide then
