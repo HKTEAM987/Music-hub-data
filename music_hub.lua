@@ -188,10 +188,26 @@ local function appliquerMusique(id, nomMusique)
     envoyerLog("Musique Jouée", "A choisi la piste : **" .. nomMusique .. "**")
     
     pcall(function()
-        if RE:FindFirstChild("1NoMoto1rVehicle1s") then RE["1NoMoto1rVehicle1s"]:FireServer("PickingScooterMusicText", tostring(id), true) end
-        if RE:FindFirstChild("1Player1sCa1r") then RE["1Player1sCa1r"]:FireServer("PickingVehicleMusicText", tostring(id), true) end
+        -- Anciens remotes
+        if RE:FindFirstChild("1NoMoto1rVehicle1s") then 
+            RE["1NoMoto1rVehicle1s"]:FireServer("PickingScooterMusicText", tostring(id), true) 
+        end
+        if RE:FindFirstChild("1Player1sCa1r") then 
+            RE["1Player1sCa1r"]:FireServer("PickingVehicleMusicText", tostring(id), true) 
+        end
+        
+        -- Nouveau remote ajouté via Screenshot_2026-06-03-21-33-28-712_com.roblox.client.jpg
+        if RE:FindFirstChild("PlayerToolEvent") then 
+            local args = {
+                "ToolMusicText",
+                tostring(id),
+                [4] = true
+            }
+            RE["PlayerToolEvent"]:FireServer(unpack(args))
+        end
     end)
 end
+
 
 local currentPanel = nil
 local function afficherPageMusique(genreName)
