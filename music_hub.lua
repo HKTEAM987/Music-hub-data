@@ -10,22 +10,38 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
--- 🚨 SÉCURITÉ WHITELIST AVEC ANTI-CACHE TOTAL
+-- 🚨 SÉCURITÉ ATTENDUE (BLOQUANTE)
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
--- On ajoute un nombre aléatoire (math.random) + le temps (os.time) pour garantir que l'URL est unique à chaque lancement
-local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?r=" .. math.random(1000000) .. "&t=" .. os.time()
+local url_whitelist = "https://raw.githubusercontent.com/jewinsonmahagafanau-create/Music-hub-data/main/whitelist.txt?nocache=" .. os.time()
 
-local success, result = pcall(function()
-    return game:HttpGet(url_whitelist)
-end)
+local estValide = false
+local tentative = 0
 
--- On vérifie si la requête a réussi ET si le nom est présent
-if not success or not string.find(result:lower(), localPlayer.Name:lower()) then
-    warn("[HK_TEAM] Accès refusé ! Tu n'es pas dans la whitelist.")
-    -- On bloque totalement la suite en faisant une boucle infinie ou un error()
-    error("Sécurité activée : Accès refusé") 
+-- On boucle tant qu'on n'a pas eu de réponse claire
+while not estValide and tentative < 5 do
+    tentative = tentative + 1
+    local success, result = pcall(function() return game:HttpGet(url_whitelist) end)
+    
+    if success and result and result ~= "" then
+        if string.find(result:lower(), localPlayer.Name:lower()) then
+            estValide = true
+            print("[HK_TEAM] Whitelist validée !")
+        else
+            warn("[HK_TEAM] Ton nom n'est pas dans la whitelist.")
+            break -- On sort de la boucle si le nom n'est pas là
+        end
+    else
+        warn("[HK_TEAM] Connexion à la whitelist impossible, nouvelle tentative...")
+        task.wait(1) -- On attend 1 seconde entre chaque tentative
+    end
+end
+
+-- Si après 5 tentatives c'est toujours pas validé, on tue le script
+if not estValide then
+    error("ACCÈS REFUSÉ : Whitelist non validée.")
+    return 
 end
 
 
