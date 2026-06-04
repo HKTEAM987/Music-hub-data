@@ -77,27 +77,49 @@ end
 Playlist = chargerPlaylist()
 
 -- ====================================================================
--- FONCTIONS D'APPLICATION DE MUSIQUE
+-- FONCTIONS D'APPLICATION DE MUSIQUE (CORRIGÉE)
 -- ====================================================================
 
 local function appliquerMusique(id, nomMusique)
     local RE = ReplicatedStorage:FindFirstChild("RE")
-    if not RE then return end
+    if not RE then
+        warn("[HK_TEAM] Remote 'RE' introuvable dans ReplicatedStorage")
+        return
+    end
     
     envoyerLog("Musique Jouée", "A choisi la piste : **" .. nomMusique .. "**")
     
-    pcall(function()
-        if RE:FindFirstChild("1NoMoto1rVehicle1s") then 
-            RE["1NoMoto1rVehicle1s"]:FireServer("PickingScooterMusicText", tostring(id), true) 
-        end
-        if RE:FindFirstChild("1Player1sCa1r") then 
-            RE["1Player1sCa1r"]:FireServer("PickingVehicleMusicText", tostring(id), true) 
-        end
-        if RE:FindFirstChild("PlayerToolEvent") then 
-            local args = {"ToolMusicText", tostring(id), [4] = true}
-            RE["PlayerToolEvent"]:FireServer(unpack(args))
-        end
-    end)
+    -- Anciens remotes
+    local remote1 = RE:FindFirstChild("1NoMoto1rVehicle1s")
+    if remote1 then
+        local success = pcall(function()
+            remote1:FireServer("PickingScooterMusicText", tostring(id), true)
+        end)
+        if not success then warn("[HK_TEAM] Échec remote 1NoMoto1rVehicle1s") end
+    else
+        warn("[HK_TEAM] Remote 1NoMoto1rVehicle1s introuvable")
+    end
+    
+    local remote2 = RE:FindFirstChild("1Player1sCa1r")
+    if remote2 then
+        local success = pcall(function()
+            remote2:FireServer("PickingVehicleMusicText", tostring(id), true)
+        end)
+        if not success then warn("[HK_TEAM] Échec remote 1Player1sCa1r") end
+    else
+        warn("[HK_TEAM] Remote 1Player1sCa1r introuvable")
+    end
+    
+    -- Nouveau remote PlayerToolEvent (CORRIGÉ)
+    local remote3 = RE:FindFirstChild("PlayerToolEvent")
+    if remote3 then
+        local success = pcall(function()
+            remote3:FireServer("ToolMusicText", tostring(id), true)
+        end)
+        if not success then warn("[HK_TEAM] Échec remote PlayerToolEvent") end
+    else
+        warn("[HK_TEAM] Remote PlayerToolEvent introuvable")
+    end
 end
 
 -- ====================================================================
@@ -190,10 +212,9 @@ ToggleIcon.MouseButton1Click:Connect(function()
 end)
 
 -- ====================================================================
--- PARTIE 3 : MENUS ET NAVIGATION
+-- PARTIE 3 : NAVIGATION
 -- ====================================================================
 
--- Navigation
 local NavFrame = Instance.new("ScrollingFrame")
 NavFrame.Parent = MainFrame
 NavFrame.Position = UDim2.new(0, 15, 0, 75)
@@ -215,7 +236,7 @@ local currentPanel = nil
 local currentNavBtn = nil
 
 -- ====================================================================
--- AFFICHAGE PAGES MUSIQUE
+-- PAGE MUSIQUE
 -- ====================================================================
 
 local function afficherPageMusique(genreName)
@@ -227,12 +248,13 @@ local function afficherPageMusique(genreName)
     Scroll.BackgroundTransparency = 1
     Scroll.ScrollBarThickness = 4
     Scroll.ScrollBarImageColor3 = ThemeColor
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, #Playlist[genreName] * 44)
+    Scroll.ScrollBarImageTransparency = 0.5
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, math.max(#(Playlist[genreName] or {}) * 44, 100))
     currentPanel = Scroll
     
     local ListLayout = Instance.new("UIListLayout") ListLayout.Parent = Scroll; ListLayout.Padding = UDim.new(0, 6)
     
-    for _, data in pairs(Playlist[genreName]) do
+    for _, data in pairs(Playlist[genreName] or {}) do
         local Btn = Instance.new("TextButton")
         Btn.Parent = Scroll
         Btn.Size = UDim2.new(1, -10, 0, 38)
@@ -242,7 +264,7 @@ local function afficherPageMusique(genreName)
         Btn.Font = Enum.Font.SourceSans
         Btn.TextSize = 14
         Btn.TextXAlignment = Enum.TextXAlignment.Left
-        Btn.AutoButtonColor = false
+        Btn.AutoButtonColor = true
         local bC = Instance.new("UICorner") bC.CornerRadius = UDim.new(0, 6) bC.Parent = Btn
         
         Btn.MouseEnter:Connect(function()
@@ -253,6 +275,7 @@ local function afficherPageMusique(genreName)
         end)
         
         Btn.MouseButton1Click:Connect(function()
+            print("[HK_TEAM] Clic sur : " .. data.Name .. " (ID: " .. tostring(data.ID) .. ")")
             TweenService:Create(Btn, TweenInfo.new(0.05), {BackgroundColor3 = ThemeColor}):Play()
             task.wait(0.05)
             TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(24, 24, 30)}):Play()
@@ -301,12 +324,15 @@ local function chargerMenuCustomID()
     
     PlayCustomBtn.MouseButton1Click:Connect(function()
         local cleanID = Box.Text:gsub("%D", "")
-        if cleanID ~= "" then appliquerMusique(cleanID, "ID Perso: " .. cleanID) end
+        if cleanID ~= "" then 
+            print("[HK_TEAM] Custom ID : " .. cleanID)
+            appliquerMusique(cleanID, "ID Perso: " .. cleanID) 
+        end
     end)
 end
 
 -- ====================================================================
--- MENU THÈME / PALETTE
+-- MENU THÈME
 -- ====================================================================
 
 local function chargerMenuTheme()
@@ -320,7 +346,8 @@ local function chargerMenuTheme()
     
     local Label = Instance.new("TextLabel")
     Label.Parent = ThemeFrame; Label.Size = UDim2.new(1, 0, 0, 30); Label.BackgroundTransparency = 1
-    Label.Text = "Sélectionne la couleur néon de ton interface :"; Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Label.Text = "Sélectionne la couleur néon de ton interface :"
+    Label.TextColor3 = Color3.fromRGB(200, 200, 200)
     Label.Font = Enum.Font.SourceSansItalic; Label.TextSize = 14
     
     local Couleurs = {
@@ -355,7 +382,7 @@ local function chargerMenuTheme()
 end
 
 -- ====================================================================
--- CRÉATION DES BOUTONS DE NAVIGATION
+-- BOUTONS DE NAVIGATION
 -- ====================================================================
 
 for genreName, _ in pairs(Playlist) do
@@ -367,10 +394,9 @@ for genreName, _ in pairs(Playlist) do
     NavBtn.TextColor3 = Color3.fromRGB(160, 160, 170)
     NavBtn.Font = Enum.Font.SourceSansBold
     NavBtn.TextSize = 13
-    NavBtn.AutoButtonColor = false
+    NavBtn.AutoButtonColor = true
     local nC = Instance.new("UICorner") nC.CornerRadius = UDim.new(0, 5) nC.Parent = NavBtn
     
-    -- Barre active
     local ActiveBar = Instance.new("Frame")
     ActiveBar.Parent = NavBtn
     ActiveBar.Size = UDim2.new(0, 3, 0, 0)
@@ -391,7 +417,6 @@ for genreName, _ in pairs(Playlist) do
     end)
     
     NavBtn.MouseButton1Click:Connect(function()
-        -- Reset ancien bouton
         if currentNavBtn and currentNavBtn ~= NavBtn then
             TweenService:Create(currentNavBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
             local oldBar = currentNavBtn:FindFirstChild("ActiveBar")
@@ -410,7 +435,6 @@ for genreName, _ in pairs(Playlist) do
         afficherPageMusique(genreName)
     end)
     
-    -- Si c'est le premier genre, on l'active par défaut
     if not currentNavBtn then
         currentNavBtn = NavBtn
         TweenService:Create(NavBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
@@ -429,7 +453,7 @@ CustomBtn.Text = "✍️ Custom ID"
 CustomBtn.TextColor3 = Color3.fromRGB(255, 190, 80)
 CustomBtn.Font = Enum.Font.SourceSansBold
 CustomBtn.TextSize = 13
-CustomBtn.AutoButtonColor = false
+CustomBtn.AutoButtonColor = true
 local cC = Instance.new("UICorner") cC.CornerRadius = UDim.new(0, 5) cC.Parent = CustomBtn
 
 CustomBtn.MouseEnter:Connect(function()
@@ -457,7 +481,7 @@ ConfigBtn.Text = "🎨 Palette UI"
 ConfigBtn.TextColor3 = Color3.fromRGB(90, 255, 140)
 ConfigBtn.Font = Enum.Font.SourceSansBold
 ConfigBtn.TextSize = 13
-ConfigBtn.AutoButtonColor = false
+ConfigBtn.AutoButtonColor = true
 local kC = Instance.new("UICorner") kC.CornerRadius = UDim.new(0, 5) kC.Parent = ConfigBtn
 
 ConfigBtn.MouseEnter:Connect(function()
@@ -481,5 +505,8 @@ end)
 -- ====================================================================
 local firstGenre = Playlist["Afro Ori Fiesta"] and "Afro Ori Fiesta" or next(Playlist)
 if firstGenre then
+    print("[HK_TEAM] Ouverture de la catégorie : " .. firstGenre)
     afficherPageMusique(firstGenre)
+else
+    warn("[HK_TEAM] Aucune musique trouvée dans la playlist")
 end
