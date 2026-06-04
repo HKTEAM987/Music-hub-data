@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 
 -- 🚨 1. SÉCURITÉ WHITELIST INITIALE
@@ -26,6 +27,7 @@ local CREATOR_ID = 3455564318
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1506773350540902558/RXTrL6fJBJzpXvJ7CsFMC0Qln8JvQ-bDCif3ar6NQtMRwjlhbLMHDIwMLc6Tt4KPNLw-"
 local ThemeColor = Color3.fromRGB(0, 210, 255)
 local AccentColor = Color3.fromRGB(255, 50, 120)
+local GlowColor = Color3.fromRGB(0, 150, 255)
 
 -- 📡 SYSTÈME DE TRANSMISSION DES LOGS
 local function envoyerLog(action, detail)
@@ -79,6 +81,349 @@ end
 Playlist = chargerPlaylist()
 
 -- ====================================================================
+-- SYSTÈME D'ANIMATIONS AVANCÉ
+-- ====================================================================
+
+-- Crée un dégradé animé en rotation continue
+local function creerGradientAnime(parent, couleurs, vitesse)
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new(couleurs)
+    grad.Parent = parent
+    grad.Rotation = 0
+    local angle = 0
+    local conn
+    conn = RunService.RenderStepped:Connect(function(dt)
+        angle = (angle + (vitesse or 30) * dt) % 360
+        grad.Rotation = angle
+    end)
+    return grad, conn
+end
+
+-- Crée un dégradé qui pulse (va-et-vient)
+local function creerGradientPulse(parent, couleurs, duree)
+    local grad = Instance.new("UIGradient")
+    grad.Color = ColorSequence.new(couleurs)
+    grad.Parent = parent
+    local info = TweenInfo.new(duree or 3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+    local tween = TweenService:Create(grad, info, {Rotation = 360})
+    tween:Play()
+    return grad, tween
+end
+
+-- Animation de "glow pulse" sur un UIStroke
+local function animerGlowStroke(stroke, couleur, duree)
+    local info = TweenInfo.new(duree or 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+    local t1 = TweenService:Create(stroke, info, {Thickness = 4})
+    local t2 = TweenService:Create(stroke, TweenInfo.new(duree or 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false), {Thickness = 1.5})
+    t1:Play()
+    t2:Play()
+    return t1, t2
+end
+
+-- Animation d'ouverture/fermeture avec easing élastique
+local function animerOuverture(objet, tailleCible, posCible, duree)
+    objet.Visible = true
+    objet.Size = UDim2.new(0, 0, 0, 0)
+    local info = TweenInfo.new(duree or 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local t1 = TweenService:Create(objet, info, {Size = tailleCible})
+    if posCible then
+        local t2 = TweenService:Create(objet, TweenInfo.new(duree or 0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = posCible})
+        t2:Play()
+    end
+    t1:Play()
+    return t1
+end
+
+local function animerFermeture(objet, duree)
+    local info = TweenInfo.new(duree or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    local t = TweenService:Create(objet, info, {Size = UDim2.new(0, 0, 0, 0)})
+    t:Play()
+    t.Completed:Connect(function()
+        objet.Visible = false
+    end)
+    return t
+end
+
+-- ====================================================================
+-- PARTIE 2 : INTERFACE GRAPHIQUE
+-- ====================================================================
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "HK_TEAM_Hub_V15"
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Fond flouté / overlay
+local BlurOverlay = Instance.new("Frame")
+BlurOverlay.Parent = ScreenGui
+BlurOverlay.Size = UDim2.new(1, 0, 1, 0)
+BlurOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlurOverlay.BackgroundTransparency = 0.5
+BlurOverlay.Visible = false
+BlurOverlay.ZIndex = 998
+local BlurEffect = Instance.new("UIGradient")
+BlurEffect.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(0,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(5,5,15))})
+BlurEffect.Rotation = 90
+BlurEffect.Parent = BlurOverlay
+
+-- ====================================================================
+-- ICÔNE FLOTTANTE PREMIUM
+-- ====================================================================
+
+local ToggleIcon = Instance.new("ImageButton")
+ToggleIcon.Parent = ScreenGui
+ToggleIcon.Size = UDim2.new(0, 65, 0, 65)
+ToggleIcon.Position = UDim2.new(0.05, 0, 0.2, 0)
+ToggleIcon.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+ToggleIcon.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(CREATOR_ID) .. "&w=150&h=150"
+ToggleIcon.Visible = false
+ToggleIcon.Active = true
+ToggleIcon.Draggable = true
+ToggleIcon.ZIndex = 999
+
+-- Coins arrondis parfaits
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(1, 0)
+IconCorner.Parent = ToggleIcon
+
+-- Dégradé animé sur le bord
+local IconGrad, IconGradConn = creerGradientAnime(ToggleIcon, {Color3.fromRGB(0,210,255), Color3.fromRGB(255,50,120), Color3.fromRGB(120,50,255), Color3.fromRGB(0,210,255)}, 45)
+
+-- Stroke lumineux
+local IconStroke = Instance.new("UIStroke")
+IconStroke.Color = ThemeColor
+IconStroke.Thickness = 2.5
+IconStroke.Transparency = 0.3
+IconStroke.Parent = ToggleIcon
+
+-- Glow pulse sur l'icône
+local glowT1, glowT2 = animerGlowStroke(IconStroke, ThemeColor, 1.2)
+
+-- Ombre portée
+local IconShadow = Instance.new("ImageLabel")
+IconShadow.Parent = ToggleIcon
+IconShadow.Size = UDim2.new(1, 8, 1, 8)
+IconShadow.Position = UDim2.new(0, -4, 0, -4)
+IconShadow.BackgroundTransparency = 1
+IconShadow.Image = "rbxassetid://5028857382"
+IconShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+IconShadow.ImageTransparency = 0.7
+IconShadow.ZIndex = -1
+
+-- ====================================================================
+-- FENÊTRE PRINCIPALE — DESIGN COMPLEXE
+-- ====================================================================
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
+MainFrame.Position = UDim2.new(0.3, 0, 0.22, 0)
+MainFrame.Size = UDim2.new(0, 720, 0, 480)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 999
+
+-- Bordure + coins
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+-- Fond avec gradient subtil
+local MainBgGrad = Instance.new("UIGradient")
+MainBgGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 8, 14)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 10, 18)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 6, 12))
+})
+MainBgGrad.Rotation = 45
+MainBgGrad.Parent = MainFrame
+
+-- Stroke principal avec rainbow lent
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = ThemeColor
+MainStroke.Thickness = 1.8
+MainStroke.Parent = MainFrame
+local MainStrokeGrad, _ = creerGradientAnime(MainStroke, {ThemeColor, AccentColor, Color3.fromRGB(120,50,255), ThemeColor}, 20)
+
+-- ====================================================================
+-- BANNIÈRE HAUTE AVEC EFFET DE GLOW
+-- ====================================================================
+
+local HeaderFrame = Instance.new("Frame")
+HeaderFrame.Parent = MainFrame
+HeaderFrame.Size = UDim2.new(1, 0, 0, 60)
+HeaderFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 16)
+HeaderFrame.ZIndex = 1000
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 16)
+HeaderCorner.Parent = HeaderFrame
+local HeaderGrad = Instance.new("UIGradient")
+HeaderGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(12, 12, 18)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(8, 8, 14)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(5, 5, 10))
+})
+HeaderGrad.Rotation = 90
+HeaderGrad.Parent = HeaderFrame
+
+-- Ligne de séparation lumineuse sous le header
+local HeaderLine = Instance.new("Frame")
+HeaderLine.Parent = HeaderFrame
+HeaderLine.Size = UDim2.new(1, -30, 0, 1.5)
+HeaderLine.Position = UDim2.new(0, 15, 1, -1)
+HeaderLine.BackgroundColor3 = Color3.fromRGB(255,255,255)
+HeaderLine.BackgroundTransparency = 0.7
+local HeaderLineGrad = Instance.new("UIGradient")
+HeaderLineGrad.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0,210,255)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,50,120)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0,210,255))
+})
+HeaderLineGrad.Rotation = 0
+HeaderLineGrad.Parent = HeaderLine
+local HLGradAnim, _ = creerGradientAnime(HeaderLineGrad, {ThemeColor, AccentColor, Color3.fromRGB(120,50,255), ThemeColor}, 35)
+
+-- Titre avec glow
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Parent = HeaderFrame
+TitleLabel.Size = UDim2.new(0, 300, 0, 35)
+TitleLabel.Position = UDim2.new(0, 25, 0, 8)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "HK_TEAM"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.GothamBlack
+TitleLabel.TextSize = 26
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Sous-titre
+local CreatorLabel = Instance.new("TextLabel")
+CreatorLabel.Parent = HeaderFrame
+CreatorLabel.Size = UDim2.new(0, 250, 0, 18)
+CreatorLabel.Position = UDim2.new(0, 25, 0, 38)
+CreatorLabel.BackgroundTransparency = 1
+CreatorLabel.Text = "par " .. CREATOR_NAME .. "  •  Music Hub"
+CreatorLabel.TextColor3 = Color3.fromRGB(160, 160, 175)
+CreatorLabel.Font = Enum.Font.SourceSansLight
+CreatorLabel.TextSize = 13
+CreatorLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Indicateur de statut en ligne (pastille animée)
+local StatusDot = Instance.new("Frame")
+StatusDot.Parent = HeaderFrame
+StatusDot.Size = UDim2.new(0, 8, 0, 8)
+StatusDot.Position = UDim2.new(1, -55, 0, 14)
+StatusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+StatusDot.ZIndex = 1001
+local DotCorner = Instance.new("UICorner")
+DotCorner.CornerRadius = UDim.new(1, 0)
+DotCorner.Parent = StatusDot
+local DotGlow = Instance.new("UIStroke")
+DotGlow.Color = Color3.fromRGB(0, 255, 100)
+DotGlow.Thickness = 3
+DotGlow.Transparency = 0.6
+DotGlow.Parent = StatusDot
+-- Animation pulse du dot
+local dotPulse = TweenService:Create(DotGlow, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Thickness = 6, Transparency = 0.2})
+dotPulse:Play()
+
+-- Status text
+local StatusText = Instance.new("TextLabel")
+StatusText.Parent = HeaderFrame
+StatusText.Size = UDim2.new(0, 60, 0, 15)
+StatusText.Position = UDim2.new(1, -80, 0, 28)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "EN LIGNE"
+StatusText.TextColor3 = Color3.fromRGB(0, 255, 100)
+StatusText.Font = Enum.Font.SourceSansBold
+StatusText.TextSize = 10
+StatusText.TextXAlignment = Enum.TextXAlignment.Right
+
+-- ====================================================================
+-- BOUTONS DE CONTRÔLE (Minimize / Close)
+-- ====================================================================
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = HeaderFrame
+MinimizeBtn.Size = UDim2.new(0, 32, 0, 32)
+MinimizeBtn.Position = UDim2.new(1, -75, 0, 14)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+MinimizeBtn.Text = "—"
+MinimizeBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 18
+MinimizeBtn.ZIndex = 1001
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 8)
+MinCorner.Parent = MinimizeBtn
+-- Hover anim
+MinimizeBtn.MouseEnter:Connect(function()
+    TweenService:Create(MinimizeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
+end)
+MinimizeBtn.MouseLeave:Connect(function()
+    TweenService:Create(MinimizeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 30)}):Play()
+end)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    animerFermeture(MainFrame, 0.35)
+    task.wait(0.35)
+    MainFrame.Visible = false
+    BlurOverlay.Visible = false
+    ToggleIcon.Visible = true
+    -- Réapparition avec effet
+    ToggleIcon.Size = UDim2.new(0, 0, 0, 0)
+    animerOuverture(ToggleIcon, UDim2.new(0, 65, 0, 65), nil, 0.3)
+end)
+
+ToggleIcon.MouseButton1Click:Connect(function()
+    ToggleIcon.Visible = false
+    BlurOverlay.Visible = true
+    MainFrame.Visible = true
+    MainFrame.Size = UDim2.new(0, 0, 0, 0)
+    animerOuverture(MainFrame, UDim2.new(0, 720, 0, 480), UDim2.new(0.3, 0, 0.22, 0), 0.45)
+    -- Faire apparaître le flou en fondu
+    BlurOverlay.BackgroundTransparency = 1
+    TweenService:Create(BlurOverlay, TweenInfo.new(0.3), {BackgroundTransparency = 0.5}):Play()
+end)
+
+-- ====================================================================
+-- PARTIE 3 : SYSTÈME DE NAVIGATION LATÉRALE (SLIDING)
+-- ====================================================================
+
+local NavFrame = Instance.new("ScrollingFrame")
+NavFrame.Parent = MainFrame
+NavFrame.Position = UDim2.new(0, 15, 0, 75)
+NavFrame.Size = UDim2.new(0, 170, 1, -100)
+NavFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+NavFrame.ScrollBarThickness = 0
+NavFrame.CanvasSize = UDim2.new(0, 0, 0, 350)
+NavFrame.BorderSize = 0
+NavFrame.ZIndex = 1000
+local NavCorner = Instance.new("UICorner")
+NavCorner.CornerRadius = UDim.new(0, 10)
+NavCorner.Parent = NavFrame
+
+-- Fond de navigation avec gradient
+local NavBgGrad, _ = creerGradientPulse(NavFrame, {Color3.fromRGB(12,12,18), Color3.fromRGB(14,10,20), Color3.fromRGB(12,12,18)}, 8)
+
+local NavList = Instance.new("UIListLayout")
+NavList.Parent = NavFrame
+NavList.Padding = UDim.new(0, 6)
+NavList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+-- ====================================================================
+-- CONTENEUR PRINCIPAL AVEC SLIDING ANIMATION
+-- ====================================================================
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Parent = MainFrame
+ContentContainer.Position = UDim2.new(0, 200, 0, 75)
+ContentContainer.Size = UDim2.new(1, -215, 1, -100)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.ClipsDescendants = true
+ContentContainer.ZIndex = 999
+
+-- ====================================================================
 -- FONCTIONS D'APPLICATION DE MUSIQUE
 -- ====================================================================
 
@@ -103,348 +448,220 @@ local function appliquerMusique(id, nomMusique)
 end
 
 -- ====================================================================
--- CRÉATION DE L'INTERFACE GRAPHIQUE
--- ====================================================================
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.Name = "HK_TEAM_Hub_V15"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.DisplayOrder = 100
-
--- ====================================================================
--- ICÔNE FLOTTANTE (cachée au départ, apparaît après minimisation)
--- ====================================================================
-
-local ToggleIcon = Instance.new("ImageButton")
-ToggleIcon.Parent = ScreenGui
-ToggleIcon.Size = UDim2.new(0, 60, 0, 60)
-ToggleIcon.Position = UDim2.new(0.05, 0, 0.2, 0)
-ToggleIcon.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-ToggleIcon.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(CREATOR_ID) .. "&w=150&h=150"
-ToggleIcon.Visible = false
-ToggleIcon.Active = true
-ToggleIcon.Draggable = true
-ToggleIcon.ZIndex = 10
-
-local IconCorner = Instance.new("UICorner")
-IconCorner.CornerRadius = UDim.new(1, 0)
-IconCorner.Parent = ToggleIcon
-
--- Dégradé animé sur le bord
-local IconGrad = Instance.new("UIGradient")
-IconGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, ThemeColor), ColorSequenceKeypoint.new(0.5, AccentColor), ColorSequenceKeypoint.new(1, ThemeColor)})
-IconGrad.Rotation = 0
-IconGrad.Parent = ToggleIcon
-
-local IconStroke = Instance.new("UIStroke")
-IconStroke.Color = ThemeColor
-IconStroke.Thickness = 2
-IconStroke.Parent = ToggleIcon
-
--- Animation rotation gradient de l'icône
-spawn(function()
-    while ToggleIcon and ToggleIcon.Parent do
-        IconGrad.Rotation = (IconGrad.Rotation + 40 * 0.03) % 360
-        task.wait(0.03)
-    end
-end)
-
--- ====================================================================
--- FENÊTRE PRINCIPALE
--- ====================================================================
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
-MainFrame.Position = UDim2.new(0.3, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 680, 0, 450)
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
-MainFrame.ZIndex = 5
-MainFrame.Visible = true
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 14)
-MainCorner.Parent = MainFrame
-
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = ThemeColor
-MainStroke.Thickness = 1.5
-MainStroke.Parent = MainFrame
-
-local MainStrokeGrad = Instance.new("UIGradient")
-MainStrokeGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, ThemeColor), ColorSequenceKeypoint.new(0.5, AccentColor), ColorSequenceKeypoint.new(1, ThemeColor)})
-MainStrokeGrad.Rotation = 0
-MainStrokeGrad.Parent = MainStroke
-
-spawn(function()
-    while MainStrokeGrad and MainStrokeGrad.Parent do
-        MainStrokeGrad.Rotation = (MainStrokeGrad.Rotation + 25 * 0.03) % 360
-        task.wait(0.03)
-    end
-end)
-
--- Fond gradien subtil
-local BgGrad = Instance.new("UIGradient")
-BgGrad.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 10, 16)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(12, 10, 18)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 8, 14))
-})
-BgGrad.Rotation = 45
-BgGrad.Parent = MainFrame
-
--- ====================================================================
--- HEADER
--- ====================================================================
-
-local HeaderFrame = Instance.new("Frame")
-HeaderFrame.Parent = MainFrame
-HeaderFrame.Size = UDim2.new(1, 0, 0, 55)
-HeaderFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
-HeaderFrame.ZIndex = 6
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 14)
-HeaderCorner.Parent = HeaderFrame
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Parent = HeaderFrame
-TitleLabel.Size = UDim2.new(0, 250, 0, 32)
-TitleLabel.Position = UDim2.new(0, 20, 0, 6)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "HK_TEAM"
-TitleLabel.TextColor3 = ThemeColor
-TitleLabel.Font = Enum.Font.Code
-TitleLabel.TextSize = 24
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.ZIndex = 7
-
-local CreatorLabel = Instance.new("TextLabel")
-CreatorLabel.Parent = HeaderFrame
-CreatorLabel.Size = UDim2.new(0, 200, 0, 16)
-CreatorLabel.Position = UDim2.new(0, 20, 0, 33)
-CreatorLabel.BackgroundTransparency = 1
-CreatorLabel.Text = "par " .. CREATOR_NAME .. " · Music Hub"
-CreatorLabel.TextColor3 = Color3.fromRGB(140, 140, 155)
-CreatorLabel.Font = Enum.Font.SourceSansItalic
-CreatorLabel.TextSize = 13
-CreatorLabel.TextXAlignment = Enum.TextXAlignment.Left
-CreatorLabel.ZIndex = 7
-
--- Bouton minimiser
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Parent = HeaderFrame
-MinimizeBtn.Size = UDim2.new(0, 32, 0, 32)
-MinimizeBtn.Position = UDim2.new(1, -42, 0, 11)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
-MinimizeBtn.Text = "—"
-MinimizeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-MinimizeBtn.Font = Enum.Font.SourceSansBold
-MinimizeBtn.TextSize = 18
-MinimizeBtn.ZIndex = 7
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 7)
-MinCorner.Parent = MinimizeBtn
-
-MinimizeBtn.MouseEnter:Connect(function()
-    TweenService:Create(MinimizeBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(35, 35, 45)}):Play()
-end)
-MinimizeBtn.MouseLeave:Connect(function()
-    TweenService:Create(MinimizeBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(22, 22, 30)}):Play()
-end)
-
--- ====================================================================
--- NAVIGATION LATÉRALE
--- ====================================================================
-
-local NavFrame = Instance.new("ScrollingFrame")
-NavFrame.Parent = MainFrame
-NavFrame.Position = UDim2.new(0, 12, 0, 65)
-NavFrame.Size = UDim2.new(0, 160, 1, -85)
-NavFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
-NavFrame.ScrollBarThickness = 2
-NavFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 80)
-NavFrame.CanvasSize = UDim2.new(0, 0, 0, 320)
-NavFrame.BorderSize = 0
-NavFrame.ZIndex = 6
-
-local NavCorner = Instance.new("UICorner")
-NavCorner.CornerRadius = UDim.new(0, 8)
-NavCorner.Parent = NavFrame
-
-local NavList = Instance.new("UIListLayout")
-NavList.Parent = NavFrame
-NavList.Padding = UDim.new(0, 5)
-NavList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
--- ====================================================================
--- CONTENEUR DE CONTENU
--- ====================================================================
-
-local ContentContainer = Instance.new("Frame")
-ContentContainer.Parent = MainFrame
-ContentContainer.Position = UDim2.new(0, 185, 0, 65)
-ContentContainer.Size = UDim2.new(1, -200, 1, -85)
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.ClipsDescendants = true
-ContentContainer.ZIndex = 5
-
--- ====================================================================
--- VARIABLES GLOBALES D'ÉTAT
+-- GÉNÉRATEUR DE PAGES AVEC SLIDING
 -- ====================================================================
 
 local currentPanel = nil
+local navIndicator = nil
 local currentNavBtn = nil
-local isMinimized = false
 
--- ====================================================================
--- FONCTIONS D'ANIMATION
--- ====================================================================
-
-local function slideIn(objet, fromX)
-    objet.Position = UDim2.new(fromX or 0.3, 0, 0, 0)
-    local t = TweenService:Create(objet, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)})
-    t:Play()
-    return t
+local function creerBoutonNavigation(texte, couleurTexte, callback)
+    local NavBtn = Instance.new("TextButton")
+    NavBtn.Parent = NavFrame
+    NavBtn.Size = UDim2.new(1, -10, 0, 42)
+    NavBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+    NavBtn.Text = "  " .. texte
+    NavBtn.TextColor3 = couleurTexte or Color3.fromRGB(170, 170, 185)
+    NavBtn.Font = Enum.Font.SourceSansBold
+    NavBtn.TextSize = 14
+    NavBtn.TextXAlignment = Enum.TextXAlignment.Left
+    NavBtn.ZIndex = 1001
+    NavBtn.AutoButtonColor = false
+    
+    local nC = Instance.new("UICorner")
+    nC.CornerRadius = UDim.new(0, 8)
+    nC.Parent = NavBtn
+    
+    -- Surbrillance gauche (indicateur actif)
+    local ActiveBar = Instance.new("Frame")
+    ActiveBar.Parent = NavBtn
+    ActiveBar.Size = UDim2.new(0, 3, 0, 0)
+    ActiveBar.Position = UDim2.new(0, 0, 0.5, 0)
+    ActiveBar.BackgroundColor3 = ThemeColor
+    ActiveBar.BorderSize = 0
+    ActiveBar.Visible = false
+    local BarCorner = Instance.new("UICorner")
+    BarCorner.CornerRadius = UDim.new(0, 2)
+    BarCorner.Parent = ActiveBar
+    
+    -- Hover animations
+    NavBtn.MouseEnter:Connect(function()
+        if NavBtn ~= currentNavBtn then
+            TweenService:Create(NavBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
+            TweenService:Create(NavBtn, TweenInfo.new(0.12), {TextColor3 = Color3.fromRGB(230, 230, 240)}):Play()
+        end
+    end)
+    NavBtn.MouseLeave:Connect(function()
+        if NavBtn ~= currentNavBtn then
+            TweenService:Create(NavBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+            TweenService:Create(NavBtn, TweenInfo.new(0.15), {TextColor3 = couleurTexte or Color3.fromRGB(170, 170, 185)}):Play()
+        end
+    end)
+    
+    NavBtn.MouseButton1Click:Connect(function()
+        -- Reset previous active button
+        if currentNavBtn and currentNavBtn ~= NavBtn then
+            TweenService:Create(currentNavBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+            TweenService:Create(currentNavBtn, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(170, 170, 185)}):Play()
+            local prevBar = currentNavBtn:FindFirstChild("ActiveBar")
+            if prevBar then
+                prevBar.Visible = false
+            end
+        end
+        
+        -- Animate current button as active
+        currentNavBtn = NavBtn
+        TweenService:Create(NavBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play()
+        TweenService:Create(NavBtn, TweenInfo.new(0.15), {TextColor3 = ThemeColor}):Play()
+        ActiveBar.Visible = true
+        TweenService:Create(ActiveBar, TweenInfo.new(0.2), {Size = UDim2.new(0, 3, 0, 28)}):Play()
+        TweenService:Create(ActiveBar, TweenInfo.new(0.2), {Position = UDim2.new(0, 0, 0.5, -14)}):Play()
+        
+        if callback then callback() end
+    end)
+    
+    return NavBtn
 end
 
-local function slideOut(objet, toX, callback)
-    local t = TweenService:Create(objet, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(toX or 0.3, 0, 0, 0)})
-    t:Play()
-    if callback then
-        t.Completed:Connect(callback)
-    end
-    return t
-end
-
 -- ====================================================================
--- AFFICHAGE DES PAGES MUSIQUE
+-- FONCTION D'AFFICHAGE PAGE MUSIQUE (SLIDING)
 -- ====================================================================
 
 local function afficherPageMusique(genreName)
     if currentPanel then
-        slideOut(currentPanel, 0.3, function()
+        -- Slide out animation
+        local slideOut = TweenService:Create(currentPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.3, 0, 0, 0)})
+        slideOut:Play()
+        slideOut.Completed:Connect(function()
             currentPanel:Destroy()
-            currentPanel = nil
-            creerPageMusique(genreName)
+            creerNouveauPanelMusique(genreName)
         end)
     else
-        creerPageMusique(genreName)
+        creerNouveauPanelMusique(genreName)
     end
 end
 
-local function creerPageMusique(genreName)
+local function creerNouveauPanelMusique(genreName)
     local Scroll = Instance.new("ScrollingFrame")
     Scroll.Parent = ContentContainer
     Scroll.Size = UDim2.new(1, 0, 1, 0)
+    Scroll.Position = UDim2.new(0.3, 0, 0, 0)
     Scroll.BackgroundTransparency = 1
     Scroll.ScrollBarThickness = 3
     Scroll.ScrollBarImageColor3 = ThemeColor
     Scroll.ScrollBarImageTransparency = 0.5
-    Scroll.CanvasSize = UDim2.new(0, 0, 0, math.max(#(Playlist[genreName] or {}) * 46, 150))
+    Scroll.CanvasSize = UDim2.new(0, 0, 0, math.max(#Playlist[genreName] * 48, 200))
     Scroll.BorderSize = 0
-    Scroll.ZIndex = 5
     currentPanel = Scroll
     
-    slideIn(Scroll, 0.3)
+    -- Slide in animation
+    TweenService:Create(Scroll, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
     
     local ListLayout = Instance.new("UIListLayout")
     ListLayout.Parent = Scroll
     ListLayout.Padding = UDim.new(0, 6)
     ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     
-    -- En-tête de catégorie
-    local CatHeader = Instance.new("TextLabel")
-    CatHeader.Parent = Scroll
-    CatHeader.Size = UDim2.new(1, -10, 0, 34)
-    CatHeader.BackgroundTransparency = 1
-    CatHeader.Text = genreName
-    CatHeader.TextColor3 = ThemeColor
-    CatHeader.Font = Enum.Font.Code
-    CatHeader.TextSize = 20
-    CatHeader.TextXAlignment = Enum.TextXAlignment.Left
+    -- Titre de la catégorie
+    local CategoryHeader = Instance.new("TextLabel")
+    CategoryHeader.Parent = Scroll
+    CategoryHeader.Size = UDim2.new(1, -10, 0, 36)
+    CategoryHeader.BackgroundTransparency = 1
+    CategoryHeader.Text = genreName
+    CategoryHeader.TextColor3 = ThemeColor
+    CategoryHeader.Font = Enum.Font.GothamBlack
+    CategoryHeader.TextSize = 20
+    CategoryHeader.TextXAlignment = Enum.TextXAlignment.Left
     
-    -- Liste des musiques
-    for _, data in pairs(Playlist[genreName] or {}) do
+    for _, data in pairs(Playlist[genreName]) do
         local Btn = Instance.new("TextButton")
         Btn.Parent = Scroll
-        Btn.Size = UDim2.new(1, -10, 0, 40)
+        Btn.Size = UDim2.new(1, -10, 0, 42)
         Btn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-        Btn.Text = "   ▶  " .. data.Name
-        Btn.TextColor3 = Color3.fromRGB(200, 200, 215)
+        Btn.Text = "  ▶  " .. data.Name
+        Btn.TextColor3 = Color3.fromRGB(200, 200, 210)
         Btn.Font = Enum.Font.SourceSans
         Btn.TextSize = 15
         Btn.TextXAlignment = Enum.TextXAlignment.Left
         Btn.AutoButtonColor = false
-        Btn.ZIndex = 5
+        Btn.ClipsDescendants = true
         
         local bC = Instance.new("UICorner")
-        bC.CornerRadius = UDim.new(0, 7)
+        bC.CornerRadius = UDim.new(0, 8)
         bC.Parent = Btn
         
-        -- Barre de survol
-        local HBar = Instance.new("Frame")
-        HBar.Parent = Btn
-        HBar.Size = UDim2.new(0, 3, 0, 0)
-        HBar.Position = UDim2.new(0, 0, 0.5, 0)
-        HBar.BackgroundColor3 = ThemeColor
-        HBar.BorderSize = 0
-        HBar.Visible = false
-        HBar.ZIndex = 6
+        -- Gradient de fond subtil
+        local BtnGrad = Instance.new("UIGradient")
+        BtnGrad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 18, 24)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 14, 20))
+        })
+        BtnGrad.Rotation = 90
+        BtnGrad.Parent = Btn
         
-        -- ID label
-        local IDLbl = Instance.new("TextLabel")
-        IDLbl.Parent = Btn
-        IDLbl.Size = UDim2.new(0, 70, 1, 0)
-        IDLbl.Position = UDim2.new(1, -75, 0, 0)
-        IDLbl.BackgroundTransparency = 1
-        IDLbl.Text = "ID: " .. data.ID
-        IDLbl.TextColor3 = Color3.fromRGB(90, 90, 110)
-        IDLbl.Font = Enum.Font.SourceSansItalic
-        IDLbl.TextSize = 11
-        IDLbl.TextXAlignment = Enum.TextXAlignment.Right
-        IDLbl.ZIndex = 6
+        -- Barre de survol à gauche
+        local HoverBar = Instance.new("Frame")
+        HoverBar.Parent = Btn
+        HoverBar.Size = UDim2.new(0, 4, 0, 0)
+        HoverBar.Position = UDim2.new(0, 0, 0.5, 0)
+        HoverBar.BackgroundColor3 = ThemeColor
+        HoverBar.BorderSize = 0
+        HoverBar.Visible = false
+        local HBcorner = Instance.new("UICorner")
+        HBcorner.CornerRadius = UDim.new(0, 2)
+        HBcorner.Parent = HoverBar
+        
+        -- ID text
+        local IDLabel = Instance.new("TextLabel")
+        IDLabel.Parent = Btn
+        IDLabel.Size = UDim2.new(0, 70, 1, 0)
+        IDLabel.Position = UDim2.new(1, -75, 0, 0)
+        IDLabel.BackgroundTransparency = 1
+        IDLabel.Text = "ID: " .. data.ID
+        IDLabel.TextColor3 = Color3.fromRGB(100, 100, 120)
+        IDLabel.Font = Enum.Font.SourceSansItalic
+        IDLabel.TextSize = 11
+        IDLabel.TextXAlignment = Enum.TextXAlignment.Right
         
         Btn.MouseEnter:Connect(function()
             TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(24, 24, 34)}):Play()
             TweenService:Create(Btn, TweenInfo.new(0.1), {TextColor3 = ThemeColor}):Play()
-            HBar.Visible = true
-            TweenService:Create(HBar, TweenInfo.new(0.12), {Size = UDim2.new(0, 3, 0, 28)}):Play()
-            TweenService:Create(HBar, TweenInfo.new(0.12), {Position = UDim2.new(0, 0, 0.5, -14)}):Play()
-            TweenService:Create(IDLbl, TweenInfo.new(0.1), {TextColor3 = ThemeColor}):Play()
+            HoverBar.Visible = true
+            TweenService:Create(HoverBar, TweenInfo.new(0.15), {Size = UDim2.new(0, 4, 0, 32)}):Play()
+            TweenService:Create(HoverBar, TweenInfo.new(0.15), {Position = UDim2.new(0, 0, 0.5, -16)}):Play()
+            TweenService:Create(IDLabel, TweenInfo.new(0.1), {TextColor3 = ThemeColor}):Play()
         end)
         Btn.MouseLeave:Connect(function()
             TweenService:Create(Btn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
-            TweenService:Create(Btn, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(200, 200, 215)}):Play()
-            TweenService:Create(HBar, TweenInfo.new(0.1), {Size = UDim2.new(0, 3, 0, 0)}):Play()
-            TweenService:Create(IDLbl, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(90, 90, 110)}):Play()
+            TweenService:Create(Btn, TweenInfo.new(0.15), {TextColor3 = Color3.fromRGB(200, 200, 210)}):Play()
+            TweenService:Create(HoverBar, TweenInfo.new(0.1), {Size = UDim2.new(0, 4, 0, 0)}):Play()
+            TweenService:Create(IDLabel, TweenInfo.new(0.1), {TextColor3 = Color3.fromRGB(100, 100, 120)}):Play()
             task.wait(0.1)
-            HBar.Visible = false
+            HoverBar.Visible = false
         end)
         
         Btn.MouseButton1Click:Connect(function()
-            TweenService:Create(Btn, TweenInfo.new(0.05), {BackgroundColor3 = ThemeColor}):Play()
-            task.wait(0.05)
-            TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
+            -- Feedback visuel au clic
+            local flash = TweenService:Create(Btn, TweenInfo.new(0.05), {BackgroundColor3 = ThemeColor})
+            flash:Play()
+            flash.Completed:Connect(function()
+                TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
+            end)
             appliquerMusique(data.ID, data.Name)
         end)
     end
 end
 
 -- ====================================================================
--- MENU CUSTOM ID
+-- MENU CUSTOM ID (AMÉLIORÉ)
 -- ====================================================================
 
 local function chargerMenuCustomID()
     if currentPanel then
-        slideOut(currentPanel, -0.3, function()
+        local slideOut = TweenService:Create(currentPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(-0.3, 0, 0, 0)})
+        slideOut:Play()
+        slideOut.Completed:Connect(function()
             currentPanel:Destroy()
-            currentPanel = nil
             creerPanelCustomID()
         end)
     else
@@ -453,180 +670,179 @@ local function chargerMenuCustomID()
 end
 
 local function creerPanelCustomID()
-    local Frame = Instance.new("Frame")
-    Frame.Parent = ContentContainer
-    Frame.Size = UDim2.new(1, 0, 1, 0)
-    Frame.BackgroundTransparency = 1
-    Frame.ZIndex = 5
-    currentPanel = Frame
+    local FrameCustom = Instance.new("Frame")
+    FrameCustom.Parent = ContentContainer
+    FrameCustom.Size = UDim2.new(1, 0, 1, 0)
+    FrameCustom.Position = UDim2.new(-0.3, 0, 0, 0)
+    FrameCustom.BackgroundTransparency = 1
+    currentPanel = FrameCustom
     
-    slideIn(Frame, -0.3)
+    -- Slide in
+    TweenService:Create(FrameCustom, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
     
+    -- Titre
     local Title = Instance.new("TextLabel")
-    Title.Parent = Frame
-    Title.Size = UDim2.new(1, -20, 0, 32)
-    Title.Position = UDim2.new(0, 10, 0, 15)
+    Title.Parent = FrameCustom
+    Title.Size = UDim2.new(1, 0, 0, 35)
+    Title.Position = UDim2.new(0, 10, 0, 10)
     Title.BackgroundTransparency = 1
     Title.Text = "✍️ ID Personnalisé"
     Title.TextColor3 = ThemeColor
-    Title.Font = Enum.Font.Code
+    Title.Font = Enum.Font.GothamBlack
     Title.TextSize = 22
     Title.TextXAlignment = Enum.TextXAlignment.Left
     
-    local Sub = Instance.new("TextLabel")
-    Sub.Parent = Frame
-    Sub.Size = UDim2.new(1, -20, 0, 18)
-    Sub.Position = UDim2.new(0, 10, 0, 42)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = "Entre un ID de musique Roblox"
-    Sub.TextColor3 = Color3.fromRGB(150, 150, 165)
-    Sub.Font = Enum.Font.SourceSansLight
-    Sub.TextSize = 14
-    Sub.TextXAlignment = Enum.TextXAlignment.Left
+    local SubTitle = Instance.new("TextLabel")
+    SubTitle.Parent = FrameCustom
+    SubTitle.Size = UDim2.new(1, 0, 0, 18)
+    SubTitle.Position = UDim2.new(0, 10, 0, 40)
+    SubTitle.BackgroundTransparency = 1
+    SubTitle.Text = "Entre un ID de musique Roblox personnalisé"
+    SubTitle.TextColor3 = Color3.fromRGB(150, 150, 165)
+    SubTitle.Font = Enum.Font.SourceSansLight
+    SubTitle.TextSize = 14
+    SubTitle.TextXAlignment = Enum.TextXAlignment.Left
     
     local Box = Instance.new("TextBox")
-    Box.Parent = Frame
-    Box.Size = UDim2.new(1, -20, 0, 46)
+    Box.Parent = FrameCustom
+    Box.Size = UDim2.new(1, -20, 0, 50)
     Box.Position = UDim2.new(0, 10, 0, 75)
-    Box.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+    Box.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
     Box.PlaceholderText = "Colle ton ID personnalisé ici..."
     Box.PlaceholderColor3 = Color3.fromRGB(80, 80, 100)
     Box.Text = ""
     Box.TextColor3 = Color3.fromRGB(255, 255, 255)
     Box.Font = Enum.Font.GothamMedium
-    Box.TextSize = 15
+    Box.TextSize = 16
     Box.ClearTextOnFocus = false
-    Box.ZIndex = 6
+    Box.ZIndex = 1002
     
-    local BoxCorner = Instance.new("UICorner")
-    BoxCorner.CornerRadius = UDim.new(0, 8)
-    BoxCorner.Parent = Box
+    local bC = Instance.new("UICorner")
+    bC.CornerRadius = UDim.new(0, 10)
+    bC.Parent = Box
     
     local BoxStroke = Instance.new("UIStroke")
     BoxStroke.Color = Color3.fromRGB(30, 30, 40)
     BoxStroke.Thickness = 1.5
     BoxStroke.Parent = Box
     
+    -- Focus / unfocus animation
     Box.Focused:Connect(function()
-        TweenService:Create(Box, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(20, 20, 30)}):Play()
-        TweenService:Create(BoxStroke, TweenInfo.new(0.12), {Color = ThemeColor, Thickness = 2}):Play()
+        TweenService:Create(Box, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(18, 18, 28)}):Play()
+        TweenService:Create(BoxStroke, TweenInfo.new(0.15), {Color = ThemeColor, Thickness = 2}):Play()
     end)
     Box.FocusLost:Connect(function()
-        TweenService:Create(Box, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
-        TweenService:Create(BoxStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(30, 30, 40), Thickness = 1.5}):Play()
+        TweenService:Create(Box, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(14, 14, 20)}):Play()
+        TweenService:Create(BoxStroke, TweenInfo.new(0.2), {Color = Color3.fromRGB(30, 30, 40), Thickness = 1.5}):Play()
     end)
     
-    local PlayBtn = Instance.new("TextButton")
-    PlayBtn.Parent = Frame
-    PlayBtn.Size = UDim2.new(1, -20, 0, 44)
-    PlayBtn.Position = UDim2.new(0, 10, 0, 135)
-    PlayBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-    PlayBtn.Text = "▶  LANCER LA MUSIQUE"
-    PlayBtn.TextColor3 = ThemeColor
-    PlayBtn.Font = Enum.Font.GothamBold
-    PlayBtn.TextSize = 15
-    PlayBtn.AutoButtonColor = false
-    PlayBtn.ZIndex = 6
+    local PlayCustomBtn = Instance.new("TextButton")
+    PlayCustomBtn.Parent = FrameCustom
+    PlayCustomBtn.Size = UDim2.new(1, -20, 0, 48)
+    PlayCustomBtn.Position = UDim2.new(0, 10, 0, 140)
+    PlayCustomBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    PlayCustomBtn.Text = "▶  LANCER LA MUSIQUE"
+    PlayCustomBtn.TextColor3 = ThemeColor
+    PlayCustomBtn.Font = Enum.Font.GothamBold
+    PlayCustomBtn.TextSize = 16
+    PlayCustomBtn.AutoButtonColor = false
+    PlayCustomBtn.ZIndex = 1002
     
-    local PBCorner = Instance.new("UICorner")
-    PBCorner.CornerRadius = UDim.new(0, 8)
-    PBCorner.Parent = PlayBtn
+    local pC = Instance.new("UICorner")
+    pC.CornerRadius = UDim.new(0, 10)
+    pC.Parent = PlayCustomBtn
     
-    local PBStroke = Instance.new("UIStroke")
-    PBStroke.Color = ThemeColor
-    PBStroke.Thickness = 1.5
-    PBStroke.Transparency = 0.6
-    PBStroke.Parent = PlayBtn
+    local PlayStroke = Instance.new("UIStroke")
+    PlayStroke.Color = ThemeColor
+    PlayStroke.Thickness = 1.5
+    PlayStroke.Transparency = 0.5
+    PlayStroke.Parent = PlayCustomBtn
     
-    PlayBtn.MouseEnter:Connect(function()
-        TweenService:Create(PlayBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(28, 28, 40)}):Play()
-        TweenService:Create(PBStroke, TweenInfo.new(0.12), {Transparency = 0.3}):Play()
+    -- Hover animation
+    PlayCustomBtn.MouseEnter:Connect(function()
+        TweenService:Create(PlayCustomBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(28, 28, 40)}):Play()
+        TweenService:Create(PlayStroke, TweenInfo.new(0.15), {Thickness = 2, Transparency = 0.2}):Play()
     end)
-    PlayBtn.MouseLeave:Connect(function()
-        TweenService:Create(PlayBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
-        TweenService:Create(PBStroke, TweenInfo.new(0.15), {Transparency = 0.6}):Play()
+    PlayCustomBtn.MouseLeave:Connect(function()
+        TweenService:Create(PlayCustomBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
+        TweenService:Create(PlayStroke, TweenInfo.new(0.2), {Thickness = 1.5, Transparency = 0.5}):Play()
     end)
     
-    PlayBtn.MouseButton1Click:Connect(function()
+    PlayCustomBtn.MouseButton1Click:Connect(function()
         local cleanID = Box.Text:gsub("%D", "")
         if cleanID ~= "" then
-            TweenService:Create(PlayBtn, TweenInfo.new(0.05), {BackgroundColor3 = ThemeColor}):Play()
+            -- Flash feedback
+            TweenService:Create(PlayCustomBtn, TweenInfo.new(0.05), {BackgroundColor3 = ThemeColor}):Play()
             task.wait(0.05)
-            TweenService:Create(PlayBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
+            TweenService:Create(PlayCustomBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
             appliquerMusique(cleanID, "ID Perso: " .. cleanID)
         end
     end)
     
-    -- IDs rapides
-    local PresetLbl = Instance.new("TextLabel")
-    PresetLbl.Parent = Frame
-    PresetLbl.Size = UDim2.new(1, -20, 0, 20)
-    PresetLbl.Position = UDim2.new(0, 10, 0, 195)
-    PresetLbl.BackgroundTransparency = 1
-    PresetLbl.Text = "IDs rapides :"
-    PresetLbl.TextColor3 = Color3.fromRGB(130, 130, 145)
-    PresetLbl.Font = Enum.Font.SourceSansItalic
-    PresetLbl.TextSize = 13
-    PresetLbl.TextXAlignment = Enum.TextXAlignment.Left
+    -- Quick presets
+    local PresetLabel = Instance.new("TextLabel")
+    PresetLabel.Parent = FrameCustom
+    PresetLabel.Size = UDim2.new(1, 0, 0, 20)
+    PresetLabel.Position = UDim2.new(0, 10, 0, 200)
+    PresetLabel.BackgroundTransparency = 1
+    PresetLabel.Text = "IDs rapides :"
+    PresetLabel.TextColor3 = Color3.fromRGB(130, 130, 145)
+    PresetLabel.Font = Enum.Font.SourceSansItalic
+    PresetLabel.TextSize = 13
+    PresetLabel.TextXAlignment = Enum.TextXAlignment.Left
     
     local presets = {
-        {"🎵 Phonk", "18350972567"},
+        {"🎵 Phonk 2024", "18350972567"},
         {"🎵 Nightcore", "18401234567"},
-        {"🎵 Lofi", "9123456789"},
-        {"🎵 Jazz", "18411234567"}
+        {"🎵 Lofi Chill", "9123456789"}
     }
     
-    local yOff = 220
-    local idx = 0
+    local yOff = 225
     for _, p in ipairs(presets) do
         local PBtn = Instance.new("TextButton")
-        PBtn.Parent = Frame
-        
-        if idx % 2 == 0 then
-            PBtn.Size = UDim2.new(0.46, 0, 0, 32)
-            PBtn.Position = UDim2.new(0, 10, 0, yOff)
-        else
-            PBtn.Size = UDim2.new(0.46, 0, 0, 32)
-            PBtn.Position = UDim2.new(0.5, 5, 0, yOff)
-            yOff = yOff + 38
+        PBtn.Parent = FrameCustom
+        PBtn.Size = UDim2.new(0.45, -5, 0, 34)
+        PBtn.Position = UDim2.new(0, 10, 0, yOff)
+        if _ % 2 == 0 then
+            PBtn.Position = UDim2.new(0.5, 5, 0, yOff - 40)
         end
-        
         PBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
         PBtn.Text = p[1]
         PBtn.TextColor3 = Color3.fromRGB(180, 180, 195)
         PBtn.Font = Enum.Font.SourceSans
         PBtn.TextSize = 13
         PBtn.AutoButtonColor = false
-        PBtn.ZIndex = 6
-        
-        local PC = Instance.new("UICorner")
-        PC.CornerRadius = UDim.new(0, 6)
-        PC.Parent = PBtn
+        local pC2 = Instance.new("UICorner")
+        pC2.CornerRadius = UDim.new(0, 6)
+        pC2.Parent = PBtn
         
         PBtn.MouseEnter:Connect(function()
             TweenService:Create(PBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
         end)
         PBtn.MouseLeave:Connect(function()
-            TweenService:Create(PBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(14, 14, 20)}):Play()
+            TweenService:Create(PBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(14, 14, 20)}):Play()
         end)
         PBtn.MouseButton1Click:Connect(function()
             Box.Text = p[2]
             appliquerMusique(p[2], p[1])
         end)
         
-        idx = idx + 1
+        if _ % 2 == 0 then
+            yOff = yOff + 42
+        end
     end
 end
 
 -- ====================================================================
--- MENU PALETTE UI (THÈME)
+-- MENU THÈME / PALETTE (AVEC PREVIEW DYNAMIQUE)
 -- ====================================================================
 
 local function chargerMenuTheme()
     if currentPanel then
-        slideOut(currentPanel, 0.3, function()
+        local slideOut = TweenService:Create(currentPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.3, 0, 0, 0)})
+        slideOut:Play()
+        slideOut.Completed:Connect(function()
             currentPanel:Destroy()
-            currentPanel = nil
             creerPanelTheme()
         end)
     else
@@ -635,68 +851,56 @@ local function chargerMenuTheme()
 end
 
 local function creerPanelTheme()
-    local Frame = Instance.new("Frame")
-    Frame.Parent = ContentContainer
-    Frame.Size = UDim2.new(1, 0, 1, 0)
-    Frame.BackgroundTransparency = 1
-    Frame.ZIndex = 5
-    currentPanel = Frame
+    local ThemeFrame = Instance.new("Frame")
+    ThemeFrame.Parent = ContentContainer
+    ThemeFrame.Size = UDim2.new(1, 0, 1, 0)
+    ThemeFrame.Position = UDim2.new(0.3, 0, 0, 0)
+    ThemeFrame.BackgroundTransparency = 1
+    currentPanel = ThemeFrame
     
-    slideIn(Frame, 0.3)
+    TweenService:Create(ThemeFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
     
     local Title = Instance.new("TextLabel")
-    Title.Parent = Frame
-    Title.Size = UDim2.new(1, -20, 0, 32)
-    Title.Position = UDim2.new(0, 10, 0, 15)
+    Title.Parent = ThemeFrame
+    Title.Size = UDim2.new(1, 0, 0, 35)
+    Title.Position = UDim2.new(0, 10, 0, 10)
     Title.BackgroundTransparency = 1
     Title.Text = "🎨 Palette de Couleurs"
     Title.TextColor3 = ThemeColor
-    Title.Font = Enum.Font.Code
+    Title.Font = Enum.Font.GothamBlack
     Title.TextSize = 22
     Title.TextXAlignment = Enum.TextXAlignment.Left
     
-    local Sub = Instance.new("TextLabel")
-    Sub.Parent = Frame
-    Sub.Size = UDim2.new(1, -20, 0, 18)
-    Sub.Position = UDim2.new(0, 10, 0, 42)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = "Personnalise l'apparence de ton hub"
-    Sub.TextColor3 = Color3.fromRGB(150, 150, 165)
-    Sub.Font = Enum.Font.SourceSansLight
-    Sub.TextSize = 14
-    Sub.TextXAlignment = Enum.TextXAlignment.Left
+    local SubTitle = Instance.new("TextLabel")
+    SubTitle.Parent = ThemeFrame
+    SubTitle.Size = UDim2.new(1, 0, 0, 18)
+    SubTitle.Position = UDim2.new(0, 10, 0, 40)
+    SubTitle.BackgroundTransparency = 1
+    SubTitle.Text = "Personnalise l'apparence de ton interface"
+    SubTitle.TextColor3 = Color3.fromRGB(150, 150, 165)
+    SubTitle.Font = Enum.Font.SourceSansLight
+    SubTitle.TextSize = 14
+    SubTitle.TextXAlignment = Enum.TextXAlignment.Left
     
     local Couleurs = {
-        {"Bleu Néon", Color3.fromRGB(0, 210, 255)},
-        {"Rouge Impérial", Color3.fromRGB(255, 60, 60)},
-        {"Vert Toxique", Color3.fromRGB(60, 255, 110)},
-        {"Rose Fuchsia", Color3.fromRGB(255, 20, 160)},
-        {"Jaune Éclair", Color3.fromRGB(255, 215, 0)},
-        {"Orange Magma", Color3.fromRGB(255, 120, 20)},
-        {"Violet Mystic", Color3.fromRGB(150, 50, 255)},
-        {"Bleu Nuit", Color3.fromRGB(50, 100, 255)}
+        ["Bleu Néon"] = Color3.fromRGB(0, 210, 255),
+        ["Rouge Impérial"] = Color3.fromRGB(255, 60, 60),
+        ["Vert Toxique"] = Color3.fromRGB(60, 255, 110),
+        ["Rose Fuchsia"] = Color3.fromRGB(255, 20, 160),
+        ["Jaune Éclair"] = Color3.fromRGB(255, 215, 0),
+        ["Orange Magma"] = Color3.fromRGB(255, 120, 20),
+        ["Violet Mystic"] = Color3.fromRGB(150, 50, 255),
+        ["Blanc Glacial"] = Color3.fromRGB(200, 220, 255)
     }
     
     local offset = 70
-    local colIdx = 0
-    local maxPerRow = 2
+    local colIndex = 0
     
-    for _, data in ipairs(Couleurs) do
-        local name = data[1]
-        local color = data[2]
-        
+    for name, color in pairs(Couleurs) do
         local CBtn = Instance.new("TextButton")
-        CBtn.Parent = Frame
-        
-        if colIdx % maxPerRow == 0 then
-            CBtn.Size = UDim2.new(0.46, 0, 0, 40)
-            CBtn.Position = UDim2.new(0, 10, 0, offset)
-        else
-            CBtn.Size = UDim2.new(0.46, 0, 0, 40)
-            CBtn.Position = UDim2.new(0.5, 5, 0, offset)
-            offset = offset + 46
-        end
-        
+        CBtn.Parent = ThemeFrame
+        CBtn.Size = UDim2.new(0.44, 0, 0, 42)
+        CBtn.Position = UDim2.new(colIndex % 2 == 0 and 0 or 0.5, colIndex % 2 == 0 and 0 or 5, 0, offset)
         CBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
         CBtn.Text = "   " .. name
         CBtn.TextColor3 = color
@@ -704,36 +908,33 @@ local function creerPanelTheme()
         CBtn.TextSize = 14
         CBtn.TextXAlignment = Enum.TextXAlignment.Left
         CBtn.AutoButtonColor = false
-        CBtn.ZIndex = 6
+        CBtn.ZIndex = 1002
         CBtn.ClipsDescendants = true
         
-        local CC = Instance.new("UICorner")
-        CC.CornerRadius = UDim.new(0, 8)
-        CC.Parent = CBtn
+        local cC = Instance.new("UICorner")
+        cC.CornerRadius = UDim.new(0, 8)
+        cC.Parent = CBtn
         
-        -- Petit cercle de couleur
-        local Dot = Instance.new("Frame")
-        Dot.Parent = CBtn
-        Dot.Size = UDim2.new(0, 14, 0, 14)
-        Dot.Position = UDim2.new(0, 8, 0.5, -7)
-        Dot.BackgroundColor3 = color
-        Dot.ZIndex = 7
-        
+        -- Color preview dot
+        local ColorDot = Instance.new("Frame")
+        ColorDot.Parent = CBtn
+        ColorDot.Size = UDim2.new(0, 16, 0, 16)
+        ColorDot.Position = UDim2.new(0, 10, 0.5, -8)
+        ColorDot.BackgroundColor3 = color
         local DotC = Instance.new("UICorner")
         DotC.CornerRadius = UDim.new(1, 0)
-        DotC.Parent = Dot
-        
+        DotC.Parent = ColorDot
         local DotS = Instance.new("UIStroke")
         DotS.Color = color
         DotS.Thickness = 2
         DotS.Transparency = 0.5
-        DotS.Parent = Dot
+        DotS.Parent = ColorDot
         
         CBtn.MouseEnter:Connect(function()
-            TweenService:Create(CBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(24, 24, 34)}):Play()
+            TweenService:Create(CBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(24, 24, 34)}):Play()
         end)
         CBtn.MouseLeave:Connect(function()
-            TweenService:Create(CBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+            TweenService:Create(CBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
         end)
         
         CBtn.MouseButton1Click:Connect(function()
@@ -742,158 +943,100 @@ local function creerPanelTheme()
             TitleLabel.TextColor3 = color
             IconStroke.Color = color
             
-            -- Mise à jour du gradient du stroke
-            MainStrokeGrad.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, color), ColorSequenceKeypoint.new(0.5, AccentColor), ColorSequenceKeypoint.new(1, color)})
+            -- Animate transition on the stroke gradient
+            if MainStrokeGrad then
+                MainStrokeGrad:Destroy()
+            end
+            MainStrokeGrad, _ = creerGradientAnime(MainStroke, {ThemeColor, AccentColor, Color3.fromRGB(120,50,255), ThemeColor}, 20)
             
-            -- Feedback flash
-            TweenService:Create(CBtn, TweenInfo.new(0.06), {BackgroundColor3 = color}):Play()
-            task.wait(0.06)
-            TweenService:Create(CBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+            -- Update all active bars and elements
+            -- Flash feedback
+            TweenService:Create(CBtn, TweenInfo.new(0.07), {BackgroundColor3 = color}):Play()
+            task.wait(0.07)
+            TweenService:Create(CBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(16, 16, 22)}):Play()
+            
+            -- Update title
+            TweenService:Create(Title, TweenInfo.new(0.2), {TextColor3 = color}):Play()
         end)
         
-        colIdx = colIdx + 1
+        colIndex = colIndex + 1
+        if colIndex % 2 == 0 then
+            offset = offset + 50
+        end
     end
+    
+    -- Preview section
+    local PreviewLabel = Instance.new("TextLabel")
+    PreviewLabel.Parent = ThemeFrame
+    PreviewLabel.Size = UDim2.new(1, 0, 0, 20)
+    PreviewLabel.Position = UDim2.new(0, 10, 0, offset + 20)
+    PreviewLabel.BackgroundTransparency = 1
+    PreviewLabel.Text = "Aperçu :"
+    PreviewLabel.TextColor3 = Color3.fromRGB(130, 130, 145)
+    PreviewLabel.Font = Enum.Font.SourceSansItalic
+    PreviewLabel.TextSize = 13
+    PreviewLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local PreviewBox = Instance.new("Frame")
+    PreviewBox.Parent = ThemeFrame
+    PreviewBox.Size = UDim2.new(1, -20, 0, 50)
+    PreviewBox.Position = UDim2.new(0, 10, 0, offset + 45)
+    PreviewBox.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+    local PBCorner = Instance.new("UICorner")
+    PBCorner.CornerRadius = UDim.new(0, 10)
+    PBCorner.Parent = PreviewBox
+    
+    local PreviewGrad, _ = creerGradientAnime(PreviewBox, {ThemeColor, AccentColor, Color3.fromRGB(120,50,255), ThemeColor}, 25)
+    
+    local PreviewText = Instance.new("TextLabel")
+    PreviewText.Parent = PreviewBox
+    PreviewText.Size = UDim2.new(1, 0, 1, 0)
+    PreviewText.BackgroundTransparency = 1
+    PreviewText.Text = "🎵 HK_TEAM Music Hub"
+    PreviewText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    PreviewText.Font = Enum.Font.GothamBlack
+    PreviewText.TextSize = 18
 end
 
 -- ====================================================================
 -- CRÉATION DES BOUTONS DE NAVIGATION
 -- ====================================================================
 
-local function creerBoutonNav(texte, couleur, callback)
-    local Btn = Instance.new("TextButton")
-    Btn.Parent = NavFrame
-    Btn.Size = UDim2.new(1, -8, 0, 38)
-    Btn.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-    Btn.Text = "  " .. texte
-    Btn.TextColor3 = couleur or Color3.fromRGB(160, 160, 175)
-    Btn.Font = Enum.Font.SourceSansBold
-    Btn.TextSize = 14
-    Btn.TextXAlignment = Enum.TextXAlignment.Left
-    Btn.AutoButtonColor = false
-    Btn.ZIndex = 7
-    
-    local NC = Instance.new("UICorner")
-    NC.CornerRadius = UDim.new(0, 7)
-    NC.Parent = Btn
-    
-    -- Barre active
-    local ABar = Instance.new("Frame")
-    ABar.Parent = Btn
-    ABar.Size = UDim2.new(0, 3, 0, 0)
-    ABar.Position = UDim2.new(0, 0, 0.5, 0)
-    ABar.BackgroundColor3 = ThemeColor
-    ABar.BorderSize = 0
-    ABar.Visible = false
-    ABar.ZIndex = 8
-    
-    Btn.MouseEnter:Connect(function()
-        if Btn ~= currentNavBtn then
-            TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(24, 24, 34)}):Play()
-        end
-    end)
-    Btn.MouseLeave:Connect(function()
-        if Btn ~= currentNavBtn then
-            TweenService:Create(Btn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
-        end
-    end)
-    
-    Btn.MouseButton1Click:Connect(function()
-        -- Reset ancien bouton
-        if currentNavBtn and currentNavBtn ~= Btn then
-            TweenService:Create(currentNavBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(18, 18, 24)}):Play()
-            local oldBar = currentNavBtn:FindFirstChild("ABar")
-            if oldBar then
-                oldBar.Visible = false
-                oldBar.Size = UDim2.new(0, 3, 0, 0)
-            end
-        end
-        
-        currentNavBtn = Btn
-        TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
-        ABar.Visible = true
-        TweenService:Create(ABar, TweenInfo.new(0.15), {Size = UDim2.new(0, 3, 0, 26)}):Play()
-        TweenService:Create(ABar, TweenInfo.new(0.15), {Position = UDim2.new(0, 0, 0.5, -13)}):Play()
-        
-        if callback then callback() end
-    end)
-    
-    return Btn
-end
-
--- Création des boutons pour chaque genre
+-- Boutons pour chaque genre dans la playlist
 for genreName, _ in pairs(Playlist) do
-    creerBoutonNav(genreName, Color3.fromRGB(160, 160, 175), function()
+    creerBoutonNavigation(genreName, Color3.fromRGB(160, 160, 175), function()
         afficherPageMusique(genreName)
     end)
 end
 
 -- Bouton Custom ID
-creerBoutonNav("✍️ Custom ID", Color3.fromRGB(255, 190, 80), chargerMenuCustomID)
+creerBoutonNavigation("✍️ Custom ID", Color3.fromRGB(255, 190, 80), chargerMenuCustomID)
 
--- Bouton Palette
-creerBoutonNav("🎨 Palette UI", Color3.fromRGB(90, 255, 140), chargerMenuTheme)
-
--- ====================================================================
--- SYSTÈME MINIMIZE / TOGGLE
--- ====================================================================
-
-MinimizeBtn.MouseButton1Click:Connect(function()
-    if isMinimized then return end
-    isMinimized = true
-    
-    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = ToggleIcon.Position
-    }):Play()
-    
-    task.wait(0.3)
-    MainFrame.Visible = false
-    ToggleIcon.Visible = true
-    ToggleIcon.Size = UDim2.new(0, 0, 0, 0)
-    
-    TweenService:Create(ToggleIcon, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 60, 0, 60)
-    }):Play()
-end)
-
-ToggleIcon.MouseButton1Click:Connect(function()
-    ToggleIcon.Visible = false
-    MainFrame.Position = ToggleIcon.Position
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.Visible = true
-    
-    TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 680, 0, 450),
-        Position = UDim2.new(0.3, 0, 0.25, 0)
-    }):Play()
-    
-    task.wait(0.35)
-    isMinimized = false
-end)
+-- Bouton Palette UI
+creerBoutonNavigation("🎨 Palette UI", Color3.fromRGB(90, 255, 140), chargerMenuTheme)
 
 -- ====================================================================
 -- LANCEMENT INITIAL
 -- ====================================================================
 
--- Ouvrir la première page
+-- Premier démarrage avec animation
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Visible = true
+animerOuverture(MainFrame, UDim2.new(0, 720, 0, 480), UDim2.new(0.3, 0, 0.22, 0), 0.5)
+
+-- Petit délai avant d'afficher la première page
+task.wait(0.5)
+
+-- Vérifier si "Afro Ori Fiesta" existe, sinon première clé disponible
 local firstGenre = Playlist["Afro Ori Fiesta"] and "Afro Ori Fiesta" or next(Playlist)
 if firstGenre then
-    creerPageMusique(firstGenre)
-    -- Activer visuellement le premier bouton
-    local firstBtn = NavFrame:FindFirstChildOfClass("TextButton")
-    if firstBtn then
-        currentNavBtn = firstBtn
-        TweenService:Create(firstBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(22, 22, 32)}):Play()
-        local ab = firstBtn:FindFirstChild("ABar")
-        if ab then
-            ab.Visible = true
-            ab.Size = UDim2.new(0, 3, 0, 26)
-            ab.Position = UDim2.new(0, 0, 0.5, -13)
-        end
-    end
+    creerNouveauPanelMusique(firstGenre)
 end
 
--- Nettoyage si le GUI est détruit
+-- Nettoyage RenderStepped connections si le gui est détruit
+local connections = {IconGradConn}
 ScreenGui.Destroying:Connect(function()
-    -- Les RenderStepped loops s'arrêtent avec le parent
+    for _, conn in ipairs(connections) do
+        if conn then conn:Disconnect() end
+    end
 end)
