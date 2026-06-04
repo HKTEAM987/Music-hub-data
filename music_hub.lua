@@ -15,7 +15,7 @@ local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
 -- On utilise le lien RAW avec ?cache= pour forcer la mise à jour instantanée
-local url_whitelist = "https://raw.githubusercontent.com/HKTEAM987/Music-hub-data/refs/heads/main/whitelist.txt?cache=" .. os.time()
+local url_whitelist = "https://gist.githubusercontent.com/HKTEAM987/54e42b3cffb8d47127435c70dce0826b/raw/1e09f816fc7150dc4027f9b573c2760becbbf20e/whitelist.txt" .. os.time()
 
 local estValide = false
 local tentatives = 0
@@ -102,7 +102,7 @@ envoyerLog("Connexion", "Le joueur a validé la Whitelist et ouvert le Hub.")
 
 -- 🎵 CHARGEMENT DYNAMIQUE DE LA PLAYLIST (CORRIGÉ)
 local Playlist = {}
-local url_musique = "https://raw.githubusercontent.com/HKTEAM987/Music-hub-data/refs/heads/main/musics.json"
+local url_musique = "https://gist.githubusercontent.com/HKTEAM987/7021ddfd4af26736ff32fc239b57ad13/raw/a34b2a0301055302e1c19f062d707f2b3a90a691/musics.json"
 
 local function chargerPlaylist()
     local success, response = pcall(function()
