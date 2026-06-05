@@ -55,7 +55,7 @@ envoyerLog("Connexion", "Le joueur a validé la Whitelist et ouvert le Hub.")
 
 -- 🎵 CHARGEMENT DYNAMIQUE DE LA PLAYLIST (CORRIGÉ)
 local Playlist = {}
-local url_musique = "https://gist.githubusercontent.com/HKTEAM987/7021ddfd4af26736ff32fc239b57ad13/raw/a34b2a0301055302e1c19f062d707f2b3a90a691/musics.json"
+local url_musique = "https://gist.githubusercontent.com/HKTEAM987/7021ddfd4af26736ff32fc239b57ad13/raw/9961cb817bc68c0cc3222a734c0ae6baa67e2489/musics.json"
 
 local function chargerPlaylist()
     local success, response = pcall(function()
