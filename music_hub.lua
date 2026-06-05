@@ -11,7 +11,7 @@ local TweenService = game:GetService("TweenService")
 local localPlayer = Players.LocalPlayer
 
 -- 🚨 1. SÉCURITÉ WHITELIST INITIALE
-local url_whitelist = "https://gist.githubusercontent.com/HKTEAM987/54e42b3cffb8d47127435c70dce0826b/raw/836ef1d974f3facf848bf25d20c0b807de1638b0/whitelist.txt"
+local url_whitelist = "https://gist.githubusercontent.com/HKTEAM987/54e42b3cffb8d47127435c70dce0826b/raw/16f4594a3fbcc97e49f0401f12047dd5ae790468/whitelist.txt"
 local succesWL, resultatWL = pcall(function() return game:HttpGet(url_whitelist) end)
 
 if not succesWL or not string.find(resultatWL:lower(), localPlayer.Name:lower()) then 
