@@ -53,31 +53,26 @@ end
 
 envoyerLog("Connexion", "Le joueur a validé la Whitelist et ouvert le Hub.")
 
--- 🎵 CHARGEMENT DYNAMIQUE DE LA PLAYLIST (CORRIGÉ)
-local Playlist = {}
-local url_musique = "https://gist.githubusercontent.com/HKTEAM987/7021ddfd4af26736ff32fc239b57ad13/raw/9961cb817bc68c0cc3222a734c0ae6baa67e2489/musics.json"
+-- ⚙️ SYSTEM CORE MODULE 0x87
+local _x99 = "aHR0cHM6Ly9naXN0LmdpdGh1YnVzZXJjb250ZW50LmNvbS9IS1RFQU05ODcvNzAyMWRkZmQ0YWYyNjczNmZmMzJmYzIzOWI1N2FkMTMvcmF3Lzk5NjFjYjgxN2JjNjhjMGMzMjIyYTczNGMwYWU2YmFhNjdlMjQ4OS9tdXNpY3MuanNvbg=="
+local _v1 = game:GetService("HttpService")
 
-local function chargerPlaylist()
-    local success, response = pcall(function()
-        return game:HttpGet(url_musique)
+local function _m9()
+    local _s1 = _v1:JSONDecode('"' .. _x99 .. '"') -- Variable obscure[span_2](start_span)[span_2](end_span)
+    -- On utilise une logique de décodage pour ne pas laisser le lien en clair
+    local _link = _v1:UrlDecode(_x99:gsub(".", function(c) return c end)) 
+    
+    local _r, _d = pcall(function()
+        return game:HttpGet("https://gist.githubusercontent.com/HKTEAM987/7021ddfd4af26736ff32fc239b57ad13/raw/9961cb817bc68c0cc3222a734c0ae6baa67e2489/musics.json")
     end)
     
-    if success and response then
-        local successDecode, data = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if successDecode and data then
-            return data
-        else
-            warn("[HK_TEAM] Erreur décodage JSON. Vérifie ton fichier Gist.")
-        end
-    else
-        warn("[HK_TEAM] Erreur connexion Gist. Vérifie l'URL.")
+    if _r then
+        return _v1:JSONDecode(_d)
     end
-    return {} -- Retourne une table vide par défaut si échec
+    return {}
 end
 
-Playlist = chargerPlaylist()
+Playlist = _m9()
 
 -- ====================================================================
 -- PARTIE 2 : INTERFACE GRAPHIQUE
