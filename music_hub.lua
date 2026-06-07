@@ -632,3 +632,622 @@ NavFrame.CanvasSize = UDim2.new(0, 0, 0, NavFrame.CanvasSize.Y.Offset + 35)
 -- ====================================================================
 -- FIN DES EFFETS
 -- ====================================================================
+-- ====================================================================
+-- PARTIE 5 : SYSTÈME ADMIN PREMIUM (CLIENT-SIDE / EXECUTOR)
+-- CRÉATEUR : DIABLESSE
+-- POUR : DELTA / ARCEUS X / HYDROGEN / FLUXUS (Mobile)
+-- ====================================================================
+
+-- 5.1 WHITELIST ADMIN (même fichier que la whitelist principale)
+local url_admin_whitelist = "https://gist.githubusercontent.com/HKTEAM987/d94c70ef6af78d7f04a90a19cddb8386/raw/d705188d4398a14e94ef8e9f48d8c9b96a75dcbb/whitelist1.txt"
+local succesAdmin, resultatAdmin = pcall(function() return game:HttpGet(url_admin_whitelist) end)
+local IS_ADMIN = false
+local ADMIN_TAG = ""
+
+if succesAdmin and resultatAdmin then
+    for line in resultatAdmin:gmatch("[^\r\n]+") do
+        if line:lower():match(localPlayer.Name:lower()) then
+            IS_ADMIN = true
+            ADMIN_TAG = "[ADMIN]"
+            break
+        end
+    end
+end
+
+-- 5.2 CRÉATION DU TAG [ADMIN] LUMINEUX AU-DESSUS DE LA TÊTE
+if IS_ADMIN then
+    spawn(function()
+        local function addTag()
+            local char = localPlayer.Character
+            if not char then return end
+            local head = char:FindFirstChild("Head")
+            if not head then return end
+            
+            -- Supprimer l'ancien tag s'il existe
+            local oldTag = head:FindFirstChild("AdminTag")
+            if oldTag then oldTag:Destroy() end
+            
+            -- BillBoard principal
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "AdminTag"
+            billboard.Parent = head
+            billboard.Size = UDim2.new(0, 220, 0, 36)
+            billboard.StudsOffset = Vector3.new(0, 3.8, 0)
+            billboard.AlwaysOnTop = true
+            billboard.ClipsDescendants = false
+            billboard.ResetOnSpawn = false
+            billboard.Active = false
+            billboard.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            
+            -- Fond du tag (translucide)
+            local TagBg = Instance.new("Frame")
+            TagBg.Parent = billboard
+            TagBg.Size = UDim2.new(1, 0, 1, 0)
+            TagBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            TagBg.BackgroundTransparency = 0.25
+            TagBg.BorderSize = 0
+            local TBgC = Instance.new("UICorner")
+            TBgC.CornerRadius = UDim.new(0, 8)
+            TBgC.Parent = TagBg
+            
+            -- Gradient arc-en-ciel animé
+            local TagGrad = Instance.new("UIGradient")
+            TagGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 210, 255)),
+                ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 50, 120)),
+                ColorSequenceKeypoint.new(0.4, Color3.fromRGB(150, 50, 255)),
+                ColorSequenceKeypoint.new(0.6, Color3.fromRGB(255, 215, 0)),
+                ColorSequenceKeypoint.new(0.8, Color3.fromRGB(255, 50, 120)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 210, 255))
+            })
+            TagGrad.Rotation = 0
+            TagGrad.Parent = TagBg
+            
+            -- Bordure lumineuse
+            local TagStroke = Instance.new("UIStroke")
+            TagStroke.Color = Color3.fromRGB(0, 210, 255)
+            TagStroke.Thickness = 2
+            TagStroke.Transparency = 0.2
+            TagStroke.Parent = TagBg
+            
+            -- Texte [ADMIN:Nom]
+            local TagText = Instance.new("TextLabel")
+            TagText.Parent = billboard
+            TagText.Size = UDim2.new(1, 0, 1, 0)
+            TagText.BackgroundTransparency = 1
+            TagText.Text = "[" .. ADMIN_TAG .. ":" .. localPlayer.Name .. "]"
+            TagText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            TagText.Font = Enum.Font.GothamBold
+            TagText.TextSize = 18
+            TagText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            TagText.TextStrokeTransparency = 0.2
+            
+            -- Animation rotation du gradient
+            local tagAngle = 0
+            while billboard and billboard.Parent do
+                tagAngle = (tagAngle + 30 * 0.03) % 360
+                TagGrad.Rotation = tagAngle
+                task.wait(0.03)
+            end
+        end
+        
+        addTag()
+        localPlayer.CharacterAdded:Connect(addTag)
+    end)
+    
+    envoyerLog("Admin Connecté", "L'admin **" .. localPlayer.Name .. "** a rejoint avec les commandes.")
+end
+
+-- 5.3 BOUTON ADMIN DANS LA NAVIGATION (visible uniquement pour les admins)
+if IS_ADMIN then
+    local AdminNavBtn = Instance.new("TextButton")
+    AdminNavBtn.Parent = NavFrame
+    AdminNavBtn.Size = UDim2.new(1, -6, 0, 38)
+    AdminNavBtn.BackgroundColor3 = Color3.fromRGB(40, 10, 10)
+    AdminNavBtn.Text = "⚡ Panel Admin"
+    AdminNavBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+    AdminNavBtn.Font = Enum.Font.SourceSansBold
+    AdminNavBtn.TextSize = 13
+    AdminNavBtn.AutoButtonColor = true
+    local aC = Instance.new("UICorner")
+    aC.CornerRadius = UDim.new(0, 5)
+    aC.Parent = AdminNavBtn
+    
+    -- Barre active rouge
+    local AdminActiveBar = Instance.new("Frame")
+    AdminActiveBar.Parent = AdminNavBtn
+    AdminActiveBar.Size = UDim2.new(0, 3, 0, 0)
+    AdminActiveBar.Position = UDim2.new(0, 0, 0.5, 0)
+    AdminActiveBar.BackgroundColor3 = Color3.fromRGB(255, 30, 30)
+    AdminActiveBar.BorderSize = 0
+    AdminActiveBar.Visible = false
+    
+    AdminNavBtn.MouseEnter:Connect(function()
+        TweenService:Create(AdminNavBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(55, 15, 15)}):Play()
+    end)
+    AdminNavBtn.MouseLeave:Connect(function()
+        if AdminNavBtn ~= currentNavBtn then
+            TweenService:Create(AdminNavBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(40, 10, 10)}):Play()
+        end
+    end)
+    
+    AdminNavBtn.MouseButton1Click:Connect(function()
+        if currentNavBtn then
+            TweenService:Create(currentNavBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(25, 25, 30)}):Play()
+            local oldBar = currentNavBtn:FindFirstChild("ActiveBar")
+            if oldBar then oldBar.Visible = false end
+            currentNavBtn = nil
+        end
+        
+        currentNavBtn = AdminNavBtn
+        TweenService:Create(AdminNavBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(55, 15, 15)}):Play()
+        AdminActiveBar.Visible = true
+        TweenService:Create(AdminActiveBar, TweenInfo.new(0.15), {Size = UDim2.new(0, 3, 0, 26)}):Play()
+        TweenService:Create(AdminActiveBar, TweenInfo.new(0.15), {Position = UDim2.new(0, 0, 0.5, -13)}):Play()
+        
+        chargerPanelAdmin()
+    end)
+    
+    -- Ajuster le canvas
+    NavFrame.CanvasSize = UDim2.new(0, 0, 0, NavFrame.CanvasSize.Y.Offset + 43)
+end
+
+-- 5.4 VARIABLES ADMIN
+local selectedPlayers = {}
+
+-- 5.5 FONCTIONS D'APPLICATION DES COMMANDES (ENVOI VIA REMOTES)
+local function getRE()
+    return ReplicatedStorage:FindFirstChild("RE") or ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
+end
+
+local function envoyerCommandeAdmin(action, cibleNom, valeur)
+    local RE = getRE()
+    if not RE then return end
+    
+    -- Essaie tous les remotes possibles
+    local remoteNames = {"PlayerToolEvent", "1NoMoto1rVehicle1s", "1Player1sCa1r", "RE"}
+    for _, rName in ipairs(remoteNames) do
+        local remote = RE:FindFirstChild(rName)
+        if remote then
+            pcall(function()
+                remote:FireServer(action, cibleNom, valeur or "")
+                remote:FireServer("AdminCommand", action, cibleNom, valeur or "")
+            end)
+        end
+    end
+    
+    envoyerLog("Commande Admin", "**" .. localPlayer.Name .. "** → `" .. action .. "` sur **" .. cibleNom .. "**" .. (valeur ~= "" and " (" .. valeur .. ")" or ""))
+end
+
+-- 5.6 COMMANDES DIRECTES SUR LES JOUEURS (CLIENT-SIDE)
+local function appliquerEffetLocal(action, cible)
+    local targetPlayer = Players:FindFirstChild(cible)
+    if not targetPlayer then return end
+    
+    local char = targetPlayer.Character
+    if not char then return end
+    
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    
+    if action == "kill_local" then
+        -- Effet visuel de mort (local)
+        if hum then hum.Health = 0 end
+        
+    elseif action == "freeze_local" then
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = true
+                end
+            end
+        end
+        
+    elseif action == "unfreeze_local" then
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Anchored = false
+                end
+            end
+        end
+        
+    elseif action == "explode_local" then
+        if root then
+            -- Créer une explosion visuelle locale
+            local expl = Instance.new("Explosion")
+            expl.Position = root.Position
+            expl.BlastRadius = 10
+            expl.BlastPressure = 0
+            expl.Visible = true
+            expl.DestroyJointRadiusPercent = 0
+            expl.Parent = workspace
+            
+            -- Faire voler le joueur
+            root.Velocity = Vector3.new(0, 50, 0)
+        end
+        
+    elseif action == "slap_local" then
+        if root then
+            root.Velocity = Vector3.new(math.random(-60, 60), 30, math.random(-60, 60))
+        end
+        
+    elseif action == "burn_local" then
+        local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or root
+        if torso then
+            local fire = Instance.new("Fire")
+            fire.Parent = torso
+            fire.Size = 8
+            fire.Heat = 15
+            task.delay(6, function()
+                pcall(function() fire:Destroy() end)
+            end)
+        end
+        
+    elseif action == "stun_local" then
+        if hum then
+            hum.PlatformStand = true
+            task.delay(4, function()
+                pcall(function() hum.PlatformStand = false end)
+            end)
+        end
+        
+    elseif action == "tpme_local" then
+        local myChar = localPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myRoot and root then
+            root.CFrame = myRoot.CFrame * CFrame.new(0, 0, -3)
+        end
+        
+    elseif action == "bring_local" then
+        local myChar = localPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myRoot and root then
+            root.CFrame = myRoot.CFrame * CFrame.new(0, 0, 5)
+        end
+        
+    elseif action == "spawn_local" then
+        targetPlayer:LoadCharacter()
+        
+    elseif action == "kick_local" then
+        -- Simulation de kick (déconnecte via TeleportService)
+        pcall(function()
+            game:GetService("TeleportService"):Teleport(game.PlaceId, targetPlayer)
+        end)
+        
+    elseif action == "fling_local" then
+        if root then
+            root.Velocity = Vector3.new(math.random(-100, 100), 100, math.random(-100, 100))
+            root.RotVelocity = Vector3.new(math.random(-50, 50), math.random(-50, 50), math.random(-50, 50))
+        end
+        
+    elseif action == "silent_local" then
+        -- Infliger des dégâts continus
+        if hum and hum.Health > 0 then
+            hum.Health = hum.Health - 10
+        end
+        
+    elseif action == "loopkill_local" then
+        spawn(function()
+            for i = 1, 20 do
+                if hum and hum.Health > 0 then
+                    hum.Health = hum.Health - 5
+                end
+                task.wait(0.2)
+            end
+        end)
+    end
+end
+
+-- 5.7 LISTE DES JOUEURS
+local function getPlayerList()
+    local list = {}
+    for _, plr in pairs(Players:GetPlayers()) do
+        table.insert(list, plr.Name)
+    end
+    table.sort(list)
+    return list
+end
+
+-- 5.8 PANEL ADMIN
+local function chargerPanelAdmin()
+    if currentPanel then currentPanel:Destroy() end
+    
+    local AdminFrame = Instance.new("ScrollingFrame")
+    AdminFrame.Parent = ContentContainer
+    AdminFrame.Size = UDim2.new(1, 0, 1, 0)
+    AdminFrame.BackgroundTransparency = 1
+    AdminFrame.ScrollBarThickness = 4
+    AdminFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 40, 40)
+    AdminFrame.ScrollBarImageTransparency = 0.5
+    AdminFrame.BorderSize = 0
+    AdminFrame.CanvasSize = UDim2.new(0, 0, 0, 780)
+    currentPanel = AdminFrame
+    
+    -- En-tête
+    local HeaderTitle = Instance.new("TextLabel")
+    HeaderTitle.Parent = AdminFrame
+    HeaderTitle.Size = UDim2.new(1, -10, 0, 36)
+    HeaderTitle.Position = UDim2.new(0, 5, 0, 5)
+    HeaderTitle.BackgroundTransparency = 1
+    HeaderTitle.Text = "⚡ PANEL ADMINSTRATEUR"
+    HeaderTitle.TextColor3 = Color3.fromRGB(255, 50, 50)
+    HeaderTitle.Font = Enum.Font.Code
+    HeaderTitle.TextSize = 20
+    HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local HeaderSub = Instance.new("TextLabel")
+    HeaderSub.Parent = AdminFrame
+    HeaderSub.Size = UDim2.new(1, -10, 0, 18)
+    HeaderSub.Position = UDim2.new(0, 5, 0, 36)
+    HeaderSub.BackgroundTransparency = 1
+    HeaderSub.Text = "Sélectionne des joueurs et applique des commandes"
+    HeaderSub.TextColor3 = Color3.fromRGB(180, 180, 190)
+    HeaderSub.Font = Enum.Font.SourceSansLight
+    HeaderSub.TextSize = 13
+    HeaderSub.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Boutons Rafraîchir + tout sélectionner
+    local RefreshBtn = Instance.new("TextButton")
+    RefreshBtn.Parent = AdminFrame
+    RefreshBtn.Size = UDim2.new(0.46, 0, 0, 34)
+    RefreshBtn.Position = UDim2.new(0, 5, 0, 62)
+    RefreshBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    RefreshBtn.Text = "🔄 Rafraîchir"
+    RefreshBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
+    RefreshBtn.Font = Enum.Font.SourceSansBold
+    RefreshBtn.TextSize = 14
+    RefreshBtn.AutoButtonColor = true
+    local RefC = Instance.new("UICorner") RefC.CornerRadius = UDim.new(0, 6) RefC.Parent = RefreshBtn
+    
+    local SelectAllBtn = Instance.new("TextButton")
+    SelectAllBtn.Parent = AdminFrame
+    SelectAllBtn.Size = UDim2.new(0.46, 0, 0, 34)
+    SelectAllBtn.Position = UDim2.new(0.5, 5, 0, 62)
+    SelectAllBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    SelectAllBtn.Text = "✓ Tout sélectionner"
+    SelectAllBtn.TextColor3 = Color3.fromRGB(150, 255, 150)
+    SelectAllBtn.Font = Enum.Font.SourceSansBold
+    SelectAllBtn.TextSize = 14
+    SelectAllBtn.AutoButtonColor = true
+    local SelC = Instance.new("UICorner") SelC.CornerRadius = UDim.new(0, 6) SelC.Parent = SelectAllBtn
+    
+    -- Conteneur liste des joueurs
+    local PlayerListContainer = Instance.new("Frame")
+    PlayerListContainer.Parent = AdminFrame
+    PlayerListContainer.Size = UDim2.new(1, -10, 0, 200)
+    PlayerListContainer.Position = UDim2.new(0, 5, 0, 104)
+    PlayerListContainer.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+    PlayerListContainer.BorderSize = 0
+    local PLCc = Instance.new("UICorner") PLCc.CornerRadius = UDim.new(0, 8) PLCc.Parent = PlayerListContainer
+    
+    local PlayerScroll = Instance.new("ScrollingFrame")
+    PlayerScroll.Parent = PlayerListContainer
+    PlayerScroll.Size = UDim2.new(1, 0, 1, 0)
+    PlayerScroll.BackgroundTransparency = 1
+    PlayerScroll.ScrollBarThickness = 3
+    PlayerScroll.ScrollBarImageColor3 = Color3.fromRGB(255, 40, 40)
+    PlayerScroll.BorderSize = 0
+    PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    
+    local PlayerLayout = Instance.new("UIListLayout")
+    PlayerLayout.Parent = PlayerScroll
+    PlayerLayout.Padding = UDim.new(0, 3)
+    
+    -- Remplir la liste
+    local function remplirListe()
+        for _, child in pairs(PlayerScroll:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
+        
+        local players = getPlayerList()
+        PlayerScroll.CanvasSize = UDim2.new(0, 0, 0, #players * 36)
+        
+        for _, pName in ipairs(players) do
+            if selectedPlayers[pName] == nil then
+                selectedPlayers[pName] = false
+            end
+            
+            local PBtn = Instance.new("TextButton")
+            PBtn.Parent = PlayerScroll
+            PBtn.Size = UDim2.new(1, -8, 0, 33)
+            PBtn.BackgroundColor3 = selectedPlayers[pName] and Color3.fromRGB(55, 15, 15) or Color3.fromRGB(18, 18, 26)
+            PBtn.Text = ""
+            PBtn.AutoButtonColor = false
+            local PBC = Instance.new("UICorner") PBC.CornerRadius = UDim.new(0, 5) PBC.Parent = PBtn
+            
+            -- Checkbox
+            local CheckBox = Instance.new("Frame")
+            CheckBox.Parent = PBtn
+            CheckBox.Size = UDim2.new(0, 18, 0, 18)
+            CheckBox.Position = UDim2.new(0, 8, 0.5, -9)
+            CheckBox.BackgroundColor3 = selectedPlayers[pName] and Color3.fromRGB(255, 40, 40) or Color3.fromRGB(30, 30, 40)
+            CheckBox.BorderSize = 0
+            local CBC = Instance.new("UICorner") CBC.CornerRadius = UDim.new(0, 4) CBC.Parent = CheckBox
+            
+            if selectedPlayers[pName] then
+                local CM = Instance.new("TextLabel")
+                CM.Parent = CheckBox
+                CM.Size = UDim2.new(1, 0, 1, 0)
+                CM.BackgroundTransparency = 1
+                CM.Text = "✓"
+                CM.TextColor3 = Color3.fromRGB(255, 255, 255)
+                CM.Font = Enum.Font.GothamBold
+                CM.TextSize = 14
+            end
+            
+            -- Nom
+            local NLabel = Instance.new("TextLabel")
+            NLabel.Parent = PBtn
+            NLabel.Size = UDim2.new(1, -70, 1, 0)
+            NLabel.Position = UDim2.new(0, 32, 0, 0)
+            NLabel.BackgroundTransparency = 1
+            NLabel.Text = pName
+            NLabel.TextColor3 = Color3.fromRGB(200, 200, 215)
+            NLabel.Font = Enum.Font.SourceSansBold
+            NLabel.TextSize = 15
+            NLabel.TextXAlignment = Enum.TextXAlignment.Left
+            
+            -- Bouton TP rapide (petit icon)
+            local TPIcon = Instance.new("TextButton")
+            TPIcon.Parent = PBtn
+            TPIcon.Size = UDim2.new(0, 24, 0, 24)
+            TPIcon.Position = UDim2.new(1, -28, 0.5, -12)
+            TPIcon.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            TPIcon.Text = "📍"
+            TPIcon.TextSize = 12
+            TPIcon.Font = Enum.Font.SourceSansBold
+            TPIcon.AutoButtonColor = false
+            local TPC = Instance.new("UICorner") TPC.CornerRadius = UDim.new(0, 4) TPC.Parent = TPIcon
+            
+            TPIcon.MouseButton1Click:Connect(function()
+                local myChar = localPlayer.Character
+                local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+                local targetChar = Players:FindFirstChild(pName)
+                if targetChar then
+                    local tChar = targetChar.Character
+                    local tRoot = tChar and tChar:FindFirstChild("HumanoidRootPart")
+                    if myRoot and tRoot then
+                        myRoot.CFrame = tRoot.CFrame * CFrame.new(0, 0, 3)
+                    end
+                end
+            end)
+            
+            PBtn.MouseButton1Click:Connect(function()
+                selectedPlayers[pName] = not selectedPlayers[pName]
+                if selectedPlayers[pName] then
+                    TweenService:Create(PBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(55, 15, 15)}):Play()
+                    CheckBox.BackgroundColor3 = Color3.fromRGB(255, 40, 40)
+                    local CM = Instance.new("TextLabel")
+                    CM.Parent = CheckBox
+                    CM.Size = UDim2.new(1, 0, 1, 0)
+                    CM.BackgroundTransparency = 1
+                    CM.Text = "✓"
+                    CM.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    CM.Font = Enum.Font.GothamBold
+                    CM.TextSize = 14
+                else
+                    TweenService:Create(PBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(18, 18, 26)}):Play()
+                    CheckBox.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+                    for _, child in pairs(CheckBox:GetChildren()) do
+                        if child:IsA("TextLabel") then child:Destroy() end
+                    end
+                end
+            end)
+        end
+    end
+    
+    remplirListe()
+    
+    RefreshBtn.MouseButton1Click:Connect(function()
+        TweenService:Create(RefreshBtn, TweenInfo.new(0.05), {BackgroundColor3 = Color3.fromRGB(40, 40, 55)}):Play()
+        task.wait(0.05)
+        TweenService:Create(RefreshBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(25, 25, 35)}):Play()
+        remplirListe()
+    end)
+    
+    local allSel = false
+    SelectAllBtn.MouseButton1Click:Connect(function()
+        allSel = not allSel
+        SelectAllBtn.Text = allSel and "✗ Tout désélectionner" or "✓ Tout sélectionner"
+        SelectAllBtn.TextColor3 = allSel and Color3.fromRGB(255, 150, 150) or Color3.fromRGB(150, 255, 150)
+        for pName, _ in pairs(selectedPlayers) do
+            selectedPlayers[pName] = allSel
+        end
+        remplirListe()
+    end)
+    
+    -- ====================================================================
+    -- COMMANDES ADMIN
+    -- ====================================================================
+    
+    local CmdLabel = Instance.new("TextLabel")
+    CmdLabel.Parent = AdminFrame
+    CmdLabel.Size = UDim2.new(1, -10, 0, 22)
+    CmdLabel.Position = UDim2.new(0, 5, 0, 312)
+    CmdLabel.BackgroundTransparency = 1
+    CmdLabel.Text = "Commandes disponibles — clic = applique aux joueurs sélectionnés :"
+    CmdLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    CmdLabel.Font = Enum.Font.SourceSansBold
+    CmdLabel.TextSize = 14
+    CmdLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Grille de commandes
+    local CmdGrid = Instance.new("Frame")
+    CmdGrid.Parent = AdminFrame
+    CmdGrid.Size = UDim2.new(1, -10, 0, 440)
+    CmdGrid.Position = UDim2.new(0, 5, 0, 338)
+    CmdGrid.BackgroundTransparency = 1
+    
+    local CmdLayout = Instance.new("UIGridLayout")
+    CmdLayout.Parent = CmdGrid
+    CmdLayout.CellSize = UDim2.new(0.31, 0, 0, 44)
+    CmdLayout.CellPadding = UDim2.new(0, 5, 0, 5)
+    CmdLayout.FillDirection = Enum.FillDirection.Horizontal
+    CmdLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    
+    local commandes = {
+        {name = "💀 KILL", color = Color3.fromRGB(255, 30, 30), action = "kill_local"},
+        {name = "🌀 EXPLODE", color = Color3.fromRGB(255, 120, 0), action = "explode_local"},
+        {name = "❄️ FREEZE", color = Color3.fromRGB(60, 180, 255), action = "freeze_local"},
+        {name = "🔥 UNFREEZE", color = Color3.fromRGB(255, 200, 60), action = "unfreeze_local"},
+        {name = "🔥 BURN", color = Color3.fromRGB(255, 60, 0), action = "burn_local"},
+        {name = "🛑 STUN", color = Color3.fromRGB(255, 255, 60), action = "stun_local"},
+        {name = "⚡ SLAP", color = Color3.fromRGB(200, 200, 60), action = "slap_local"},
+        {name = "🌀 FLING", color = Color3.fromRGB(255, 100, 200), action = "fling_local"},
+        {name = "📍 TP ME", color = Color3.fromRGB(60, 200, 255), action = "tpme_local"},
+        {name = "📦 BRING", color = Color3.fromRGB(60, 255, 150), action = "bring_local"},
+        {name = "💧 RESPAWN", color = Color3.fromRGB(60, 255, 100), action = "spawn_local"},
+        {name = "🔪 LOOPKILL", color = Color3.fromRGB(200, 0, 0), action = "loopkill_local"},
+        {name = "🤫 SILENT", color = Color3.fromRGB(180, 60, 180), action = "silent_local"},
+        {name = "👢 KICK(TP)", color = Color3.fromRGB(255, 80, 80), action = "kick_local"},
+    }
+    
+    for _, cmd in ipairs(commandes) do
+        local CmdBtn = Instance.new("TextButton")
+        CmdBtn.Parent = CmdGrid
+        CmdBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+        CmdBtn.Text = cmd.name
+        CmdBtn.TextColor3 = cmd.color
+        CmdBtn.Font = Enum.Font.SourceSansBold
+        CmdBtn.TextSize = 12
+        CmdBtn.AutoButtonColor = true
+        local CmC = Instance.new("UICorner") CmC.CornerRadius = UDim.new(0, 6) CmC.Parent = CmdBtn
+        
+        local CmdStroke = Instance.new("UIStroke")
+        CmdStroke.Color = cmd.color
+        CmdStroke.Thickness = 1
+        CmdStroke.Transparency = 0.6
+        CmdStroke.Parent = CmdBtn
+        
+        CmdBtn.MouseEnter:Connect(function()
+            TweenService:Create(CmdBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 42)}):Play()
+            TweenService:Create(CmdStroke, TweenInfo.new(0.1), {Transparency = 0.2}):Play()
+        end)
+        CmdBtn.MouseLeave:Connect(function()
+            TweenService:Create(CmdBtn, TweenInfo.new(0.12), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
+            TweenService:Create(CmdStroke, TweenInfo.new(0.12), {Transparency = 0.6}):Play()
+        end)
+        
+        CmdBtn.MouseButton1Click:Connect(function()
+            for pName, isSel in pairs(selectedPlayers) do
+                if isSel and pName ~= localPlayer.Name then
+                    -- Envoie via les remotes du jeu
+                    envoyerCommandeAdmin(cmd.action, pName, "")
+                    -- Effet local direct
+                    appliquerEffetLocal(cmd.action, pName)
+                end
+            end
+            
+            TweenService:Create(CmdBtn, TweenInfo.new(0.05), {BackgroundColor3 = cmd.color}):Play()
+            task.wait(0.05)
+            TweenService:Create(CmdBtn, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(20, 20, 28)}):Play()
+        end)
+    end
+    
+    AdminFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+end
+
+-- ====================================================================
+-- FIN PARTIE ADMIN
+-- ====================================================================
