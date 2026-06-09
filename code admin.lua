@@ -19,7 +19,7 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1506773350540902558/RXTrL6
 local ThemeColor = Color3.fromRGB(255, 40, 40) -- Rouge admin
 
 -- Whitelist admin
-local url_whitelist = "https://gist.githubusercontent.com/HKTEAM987/54e42b3cffb8d47127435c70dce0826b/raw/836ef1d974f3facf848bf25d20c0b807de1638b0/whitelist.txt"
+local url_whitelist = "https://gist.githubusercontent.com/HKTEAM987/2b66e9a3fe0da2e56d47db06ae206e0a/raw/49f0028e3d0321a295bb3515d808c48fc3860d5a/gistfile1.txt"
 local succesWL, resultatWL = pcall(function() return game:HttpGet(url_whitelist) end)
 
 if not succesWL or not string.find(resultatWL:lower(), localPlayer.Name:lower()) then
